@@ -11,16 +11,54 @@ const SignIn: React.FC<SignInProps> = ({ onSwitchToSignUp }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    setSuccess(null);
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      console.log('Sign in:', { email, password });
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/signin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle error response
+        throw new Error(data.message || 'Login failed');
+      }
+
+      // Success - save token and user data
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      
+      setSuccess('Login successful! Redirecting...');
+
+      // Redirect to dashboard or home page after 1.5 seconds
+      setTimeout(() => {
+        // You can redirect to your dashboard or home page here
+        window.location.href = '/dashboard';
+        // Or use Next.js router if you're using Next.js:
+        // router.push('/dashboard');
+      }, 1500);
+
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during login');
+    } finally {
       setIsLoading(false);
-    }, 2000);
+    }
   };
 
   return (
@@ -165,6 +203,30 @@ const SignIn: React.FC<SignInProps> = ({ onSwitchToSignUp }) => {
 
           {/* Form Card */}
           <div className="bg-white rounded-2xl shadow-xl shadow-orange-500/10 p-8 backdrop-blur-sm border border-orange-100 animate-scale-in">
+            {/* Error Alert */}
+            {error && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm text-red-800 font-medium">{error}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Success Alert */}
+            {success && (
+              <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl">
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm text-green-800 font-medium">{success}</span>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Email Input */}
               <div className="animate-fade-in-up delay-100">
@@ -176,7 +238,10 @@ const SignIn: React.FC<SignInProps> = ({ onSwitchToSignUp }) => {
                     type="email"
                     id="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setError(null);
+                    }}
                     className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 outline-none transition-all duration-300 text-slate-800 placeholder-slate-400"
                     placeholder="you@example.com"
                     required
@@ -199,7 +264,10 @@ const SignIn: React.FC<SignInProps> = ({ onSwitchToSignUp }) => {
                     type={showPassword ? 'text' : 'password'}
                     id="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setError(null);
+                    }}
                     className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 outline-none transition-all duration-300 text-slate-800 placeholder-slate-400"
                     placeholder="••••••••"
                     required
@@ -225,15 +293,6 @@ const SignIn: React.FC<SignInProps> = ({ onSwitchToSignUp }) => {
 
               {/* Remember Me & Forgot Password */}
               <div className="flex items-center justify-between animate-fade-in-up delay-300">
-                <label className="flex items-center cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 border-2 border-slate-300 rounded text-orange-600 focus:ring-2 focus:ring-orange-500/20 cursor-pointer"
-                  />
-                  <span className="ml-2 text-sm text-slate-600 group-hover:text-slate-800 transition-colors">
-                    Remember me
-                  </span>
-                </label>
                 <button
                   type="button"
                   className="text-sm font-semibold text-orange-600 hover:text-orange-700 transition-colors"
