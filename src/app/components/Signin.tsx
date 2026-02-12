@@ -1,7 +1,6 @@
 'use client';
-
+import { useRouter } from 'next/navigation';
 import React, { useState } from 'react';
-
 interface SignInProps {
   onSwitchToSignUp?: () => void;
 }
@@ -14,6 +13,8 @@ const SignIn: React.FC<SignInProps> = ({ onSwitchToSignUp }) => {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const router = useRouter();
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,13 +47,10 @@ const SignIn: React.FC<SignInProps> = ({ onSwitchToSignUp }) => {
       
       setSuccess('Login successful! Redirecting...');
 
-      // Redirect to dashboard or home page after 1.5 seconds
       setTimeout(() => {
-        // You can redirect to your dashboard or home page here
-        window.location.href = '/dashboard';
-        // Or use Next.js router if you're using Next.js:
-        // router.push('/dashboard');
-      }, 1500);
+      router.push('/dashboard');
+    }, 1500);
+
 
     } catch (err: any) {
       setError(err.message || 'An error occurred during login');
@@ -63,7 +61,6 @@ const SignIn: React.FC<SignInProps> = ({ onSwitchToSignUp }) => {
 
   return (
     <>
-      {/* Inline Styles for Animations */}
       <style jsx>{`
         @keyframes fadeInUp {
           0% {
