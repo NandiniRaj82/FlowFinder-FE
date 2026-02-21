@@ -6,26 +6,29 @@ interface ChoiceCardsProps {
   fileName: string;
   onChoiceSelect: (choice: 'suggestions' | 'full-correction') => void;
   onReset: () => void;
+  isProcessing?: boolean; // Added this prop
 }
 
-const ChoiceCards: React.FC<ChoiceCardsProps> = ({ fileName, onChoiceSelect, onReset }) => {
+const ChoiceCards: React.FC<ChoiceCardsProps> = ({ 
+  fileName, 
+  onChoiceSelect, 
+  onReset,
+  isProcessing: externalIsProcessing = false // Renamed to avoid conflict
+}) => {
   const [selectedChoice, setSelectedChoice] = useState<'suggestions' | 'full-correction' | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Use external processing state if provided, otherwise use local state
+  const isProcessing = externalIsProcessing;
 
   const handleChoiceClick = (choice: 'suggestions' | 'full-correction') => {
-    setSelectedChoice(choice);
+    if (!isProcessing) {
+      setSelectedChoice(choice);
+    }
   };
 
   const handleProceed = () => {
-    if (selectedChoice) {
-      setIsProcessing(true);
+    if (selectedChoice && !isProcessing) {
       onChoiceSelect(selectedChoice);
-      
-      // Simulate processing
-      setTimeout(() => {
-        setIsProcessing(false);
-        // Here you would handle the actual API call and response
-      }, 2000);
     }
   };
 
@@ -123,7 +126,7 @@ const ChoiceCards: React.FC<ChoiceCardsProps> = ({ fileName, onChoiceSelect, onR
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
           {/* Suggestions Card */}
           <div
-            onClick={() => !isProcessing && handleChoiceClick('suggestions')}
+            onClick={() => handleChoiceClick('suggestions')}
             className={`
               relative group cursor-pointer transform transition-all duration-300 animate-scale-in
               ${selectedChoice === 'suggestions' 
@@ -211,7 +214,7 @@ const ChoiceCards: React.FC<ChoiceCardsProps> = ({ fileName, onChoiceSelect, onR
 
           {/* Full Correction Card */}
           <div
-            onClick={() => !isProcessing && handleChoiceClick('full-correction')}
+            onClick={() => handleChoiceClick('full-correction')}
             className={`
               relative group cursor-pointer transform transition-all duration-300 animate-scale-in
               ${selectedChoice === 'full-correction' 
@@ -320,11 +323,10 @@ const ChoiceCards: React.FC<ChoiceCardsProps> = ({ fileName, onChoiceSelect, onR
             disabled={!selectedChoice || isProcessing}
             className={`
               px-12 py-4 font-bold rounded-xl transition-all duration-300 shadow-lg
-              ${selectedChoice
+              ${selectedChoice && !isProcessing
                 ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:shadow-xl hover:-translate-y-0.5'
                 : 'bg-slate-200 text-slate-400 cursor-not-allowed'
               }
-              ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}
             `}
           >
             {isProcessing ? (
