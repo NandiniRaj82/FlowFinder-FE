@@ -2,64 +2,52 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 
-const DUMMY_ERRORS = [
-  {
-    errorNumber: 1,
-    errorType: "Insufficient Color Contrast",
-    severity: "critical",
-    explanation: "Text using `text-gray-400` on dark backgrounds fails WCAG contrast requirements. Users with low vision cannot read this content.",
-    codeExample: '<!-- Before -->\n<p className="text-gray-400">Description text</p>\n\n<!-- After -->\n<p className="text-gray-200">Description text</p>\n<!-- Min 4.5:1 contrast ratio for normal text (WCAG AA) -->',
-    wcagReference: "WCAG 2.1 Level AA 1.4.3 Contrast (Minimum)",
-  },
-  {
-    errorNumber: 2,
-    errorType: "Missing Accessible Names for Icons",
-    severity: "critical",
-    explanation: "Informative icons (briefcase, calendar, map pin) have no text alternatives. Screen reader users miss this context entirely.",
-    codeExample: '<!-- Before -->\n<FiCalendar size={16} />\n<span>{exp.period}</span>\n\n<!-- After -->\n<FiCalendar size={16} aria-hidden="true" />\n<span className="sr-only">Period:</span>\n<span>{exp.period}</span>',
-    wcagReference: "WCAG 2.1 Level A 1.1.1 Non-text Content",
-  },
-  {
-    errorNumber: 3,
-    errorType: "Non-Semantic Timeline Structure",
-    severity: "high",
-    explanation: "Timeline uses generic `div` elements. Screen readers can't announce item count or list structure to users.",
-    codeExample: '<!-- Before -->\n<div className="space-y-8">\n  <div className="relative">...</div>\n</div>\n\n<!-- After -->\n<ul className="space-y-8" role="list">\n  <li className="relative">\n    <div aria-hidden="true" /> {/* decorative dot */}\n    {/* card content */}\n  </li>\n</ul>',
-    wcagReference: "WCAG 2.1 Level A 1.3.1 Info and Relationships",
-  },
-  {
-    errorNumber: 4,
-    errorType: "Non-Semantic Metadata Grouping",
-    severity: "moderate",
-    explanation: "Period and location details use plain `div`s. Semantic `ul/li` helps screen readers announce them as a related group.",
-    codeExample: '<!-- Before -->\n<div className="flex gap-4">\n  <div><FiCalendar />{exp.period}</div>\n</div>\n\n<!-- After -->\n<ul className="flex gap-4">\n  <li>\n    <FiCalendar aria-hidden="true" />\n    <span className="sr-only">Period:</span>\n    {exp.period}\n  </li>\n</ul>',
-    wcagReference: "WCAG 2.1 Level A 1.3.1 Info and Relationships",
-  },
-  {
-    errorNumber: 5,
-    errorType: "Decorative Bullets Exposed to Screen Readers",
-    severity: "moderate",
-    explanation: "Custom `•` spans are read aloud by screen readers, cluttering the audio experience with redundant punctuation.",
-    codeExample: '<!-- Before -->\n<li>\n  <span className="text-purple-300">•</span>\n  <span>{achievement}</span>\n</li>\n\n<!-- After -->\n<li>\n  <span className="text-purple-300" aria-hidden="true">•</span>\n  <span>{achievement}</span>\n</li>',
-    wcagReference: "WCAG 2.1 Level A 1.1.1 Non-text Content",
-  },
-];
+/* ── Normalize errors coming from the extension ───────────────────────────
+   Extension errors have: { title, impact, source, selector, pages, count }
+   Gemini errors have:    { errorType, severity, explanation, codeExample, wcagReference }
+── */
+const normalizeError = (err: any, index: number) => ({
+  errorNumber:   err.errorNumber  ?? index + 1,
+  errorType:     err.errorType    ?? err.title ?? err.id ?? 'Accessibility Issue',
+  severity:      err.severity     ?? err.impact ?? 'low',
+  explanation:   err.explanation  ?? err.description ?? err.help ?? '',
+  codeExample:   err.codeExample  ?? null,
+  wcagReference: err.wcagReference ?? (err.tags ? err.tags.filter((t: string) => t.startsWith('wcag')).join(', ') : ''),
+  source:        err.source       ?? null,
+  pages:         err.pages        ?? null,
+});
 
-/* ── Helpers ─────────────────────────────────────────────────────────────── */
-
-const SEVERITY_STYLES: Record<string, { pill: string; dot: string }> = {
+/* ── Impact/severity color map ───────────────────────────────────────────── */
+const IMPACT_STYLES: Record<string, { pill: string; dot: string }> = {
   critical: { pill: "bg-red-100 text-red-700",      dot: "bg-red-500"    },
+  serious:  { pill: "bg-red-100 text-red-700",       dot: "bg-red-400"    },
   high:     { pill: "bg-orange-100 text-orange-700", dot: "bg-orange-500" },
   moderate: { pill: "bg-yellow-100 text-yellow-700", dot: "bg-yellow-500" },
+  minor:    { pill: "bg-blue-100 text-blue-700",     dot: "bg-blue-400"   },
   low:      { pill: "bg-blue-100 text-blue-700",     dot: "bg-blue-500"   },
 };
 
-const SeverityBadge = ({ severity }: { severity: string }) => {
-  const s = SEVERITY_STYLES[severity] || SEVERITY_STYLES.low;
+/* ── Source badge (lighthouse vs axe) ───────────────────────────────────── */
+const SourceBadge = ({ source }: { source: string | null }) => {
+  if (!source) return null;
+  const isLighthouse = source === 'lighthouse';
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+      isLighthouse ? 'bg-purple-100 text-purple-700' : 'bg-cyan-100 text-cyan-700'
+    }`}>
+      {isLighthouse ? '🔦 Lighthouse' : '🪓 Axe'}
+    </span>
+  );
+};
+
+/* ── Impact badge ────────────────────────────────────────────────────────── */
+const ImpactBadge = ({ severity }: { severity: string }) => {
+  const safe = (severity || 'low').toLowerCase();
+  const s = IMPACT_STYLES[safe] || IMPACT_STYLES.low;
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${s.pill}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-      {severity.charAt(0).toUpperCase() + severity.slice(1)}
+      {safe.charAt(0).toUpperCase() + safe.slice(1)}
     </span>
   );
 };
@@ -107,7 +95,7 @@ const TypingDots = () => (
   </div>
 );
 
-/* ── Message renderer ─────────────────────────────────────────────────────── */
+/* ── Message types ───────────────────────────────────────────────────────── */
 interface Msg {
   id: string | number;
   role: 'user' | 'assistant';
@@ -117,6 +105,7 @@ interface Msg {
   corrections?: any[];
 }
 
+/* ── Message renderer ────────────────────────────────────────────────────── */
 const ChatMessage = ({ msg }: { msg: Msg }) => {
   if (msg.role === 'user') {
     return (
@@ -153,10 +142,22 @@ const ChatMessage = ({ msg }: { msg: Msg }) => {
                       </span>
                       <h3 className="font-semibold text-slate-800 text-sm leading-tight">{err.errorType}</h3>
                     </div>
-                    <SeverityBadge severity={err.severity} />
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <SourceBadge source={err.source} />
+                      <ImpactBadge severity={err.severity} />
+                    </div>
                   </div>
-                  <p className="text-sm text-slate-600 leading-relaxed mb-2">{err.explanation}</p>
-                  <p className="text-xs font-medium text-orange-600">{err.wcagReference}</p>
+                  {err.explanation && (
+                    <p className="text-sm text-slate-600 leading-relaxed mb-2">{err.explanation}</p>
+                  )}
+                  {err.wcagReference && (
+                    <p className="text-xs font-medium text-orange-600">{err.wcagReference}</p>
+                  )}
+                  {err.pages && err.pages.length > 0 && (
+                    <p className="text-xs text-slate-400 mt-1">
+                      Found on: {err.pages.map((p: string) => { try { return new URL(p).pathname || '/'; } catch { return p; } }).join(', ')}
+                    </p>
+                  )}
                   {err.codeExample && <CodeBlock code={err.codeExample} />}
                 </div>
               </div>
@@ -178,21 +179,26 @@ const ChatMessage = ({ msg }: { msg: Msg }) => {
               {msg.corrections.map((err, i) => (
                 <div key={i} className="p-5" style={{ animation: `slideInUp 0.3s ease-out ${i*0.06}s both` }}>
                   <div className="flex items-center gap-2 mb-2">
-                    <SeverityBadge severity={err.severity} />
+                    <SourceBadge source={err.source} />
+                    <ImpactBadge severity={err.severity} />
                     <span className="text-sm font-medium text-slate-700">{err.errorType}</span>
                   </div>
+                  {err.explanation && (
+                    <p className="text-xs text-slate-500 mb-2">{err.explanation}</p>
+                  )}
                   {err.codeExample && <CodeBlock code={err.codeExample} />}
                 </div>
               ))}
             </div>
           </div>
         )}
+
       </div>
     </div>
   );
 };
 
-/* ── Main component ─────────────────────────────────────────────────────── */
+/* ── Main component ──────────────────────────────────────────────────────── */
 interface Props {
   errors?: any[] | null;
   fileName?: string;
@@ -201,8 +207,13 @@ interface Props {
 }
 
 const AccessibilityChat: React.FC<Props> = ({ errors: propErrors, fileName, initialChoice, onReset }) => {
-  const errors = propErrors?.length ? propErrors : DUMMY_ERRORS;
-  const criticalCount = errors.filter(e => e.severity === 'critical').length;
+
+  // No dummy data — only real errors from the extension
+  const errors = (propErrors ?? []).map(normalizeError);
+
+  const criticalCount = errors.filter(e =>
+    ['critical', 'serious'].includes((e.severity || '').toLowerCase())
+  ).length;
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -213,7 +224,6 @@ const AccessibilityChat: React.FC<Props> = ({ errors: propErrors, fileName, init
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  /* Auto-trigger the flow as soon as component mounts */
   useEffect(() => {
     if (didRun.current) return;
     didRun.current = true;
@@ -227,10 +237,19 @@ const AccessibilityChat: React.FC<Props> = ({ errors: propErrors, fileName, init
   const runFlow = async () => {
     const isSuggestions = initialChoice === 'suggestions';
 
+    // No errors case
+    if (errors.length === 0) {
+      addMsg({
+        role: 'assistant',
+        text: `No accessibility errors were found. Please import errors from the extension before proceeding.`,
+      });
+      return;
+    }
+
     // 1. Greeting
     addMsg({
       role: 'assistant',
-      text: `I've scanned "${fileName || 'your file'}" and found ${errors.length} accessibility issue${errors.length !== 1 ? 's' : ''} — ${criticalCount} critical. ${isSuggestions ? 'Here are my suggestions:' : 'Correcting all issues now…'}`,
+      text: `I've scanned "${fileName || 'your file'}" and found ${errors.length} accessibility issue${errors.length !== 1 ? 's' : ''} — ${criticalCount} critical/serious. ${isSuggestions ? 'Here are my suggestions:' : 'Correcting all issues now…'}`,
     });
 
     // 2. Show user's choice as their message
@@ -318,6 +337,7 @@ const AccessibilityChat: React.FC<Props> = ({ errors: propErrors, fileName, init
             </p>
           </div>
         </div>
+
       </div>
     </>
   );
