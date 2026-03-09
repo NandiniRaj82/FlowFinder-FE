@@ -139,14 +139,13 @@ const ChoiceCards: React.FC<ChoiceCardsProps> = ({
           >
             <div
               className={`
-                relative bg-white rounded-3xl p-8 shadow-xl border-4 transition-all duration-300 overflow-hidden
+                relative bg-white rounded-3xl p-8 shadow-xl border-4 transition-all duration-300 overflow-hidden h-full
                 ${selectedChoice === 'suggestions' 
-                  ? 'border-blue-500 shadow-2xl shadow-blue-500/30' 
-                  : 'border-blue-200 group-hover:border-blue-400'
+                  ? 'border-slate-800 shadow-2xl shadow-slate-800/20' 
+                  : 'border-orange-200 group-hover:border-slate-500'
                 }
               `}
             >
-              {/* Shimmer effect for selected card */}
               {selectedChoice === 'suggestions' && (
                 <div className="absolute inset-0 shimmer pointer-events-none" />
               )}
@@ -156,8 +155,8 @@ const ChoiceCards: React.FC<ChoiceCardsProps> = ({
                 <div className={`
                   w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-300
                   ${selectedChoice === 'suggestions'
-                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/50'
-                    : 'bg-gradient-to-br from-blue-400 to-blue-500 group-hover:shadow-lg group-hover:shadow-blue-500/30'
+                    ? 'bg-gradient-to-br from-slate-600 to-slate-700 shadow-lg shadow-slate-500/50'
+                    : 'bg-gradient-to-br from-slate-500 to-slate-600 group-hover:shadow-lg group-hover:shadow-slate-500/30'
                   }
                 `}>
                   <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -193,7 +192,7 @@ const ChoiceCards: React.FC<ChoiceCardsProps> = ({
                 ].map((feature, index) => (
                   <li key={index} className="flex items-center space-x-3">
                     <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
@@ -204,10 +203,10 @@ const ChoiceCards: React.FC<ChoiceCardsProps> = ({
 
               {/* Badge */}
               <div className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-50 rounded-full">
-                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
-                <span className="text-sm font-semibold text-blue-700">For Learning</span>
+                <span className="text-sm font-semibold text-slate-700">For Learning</span>
               </div>
             </div>
           </div>
@@ -227,10 +226,10 @@ const ChoiceCards: React.FC<ChoiceCardsProps> = ({
           >
             <div
               className={`
-                relative bg-white rounded-3xl p-8 shadow-xl border-4 transition-all duration-300 overflow-hidden
+                relative bg-white rounded-3xl p-8 shadow-xl border-4 transition-all duration-300 overflow-hidden h-full
                 ${selectedChoice === 'full-correction' 
-                  ? 'border-orange-500 shadow-2xl shadow-orange-500/30' 
-                  : 'border-orange-200 group-hover:border-orange-400'
+                  ? 'border-orange-500 shadow-2xl shadow-orange-500/20' 
+                  : 'border-slate-200 group-hover:border-orange-400'
                 }
               `}
             >

@@ -332,7 +332,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         {stage !== 'chat' && (
           <footer className="relative z-10 py-6 flex-shrink-0">
             <div className="max-w-7xl mx-auto px-6 text-center">
-              <p className="text-sm text-slate-600">Made with ❤️ by Flow Finder Team • Powered by Gemini AI</p>
+              <p className="text-sm text-slate-600"></p>
             </div>
           </footer>
         )}
