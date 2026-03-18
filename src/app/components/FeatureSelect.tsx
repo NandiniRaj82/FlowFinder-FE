@@ -1,11 +1,10 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
 
 interface FeatureSelectProps {
   user?: { fullName: string; email: string };
-  onSelect: (feature: 'accessibility' | 'match-design') => void;
+  onSelect: (feature: 'accessibility' | 'match-design' | 'website-redesigner') => void;
 }
 
 const FeatureSelect: React.FC<FeatureSelectProps> = ({ user, onSelect }) => {
@@ -23,7 +22,6 @@ const FeatureSelect: React.FC<FeatureSelectProps> = ({ user, onSelect }) => {
 
       <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 flex flex-col">
 
-        {/* Header */}
         <header className="bg-white/70 backdrop-blur-md border-b border-orange-100 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -50,11 +48,8 @@ const FeatureSelect: React.FC<FeatureSelectProps> = ({ user, onSelect }) => {
           </div>
         </header>
 
-        {/* Main */}
         <main className="flex-1 flex flex-col items-center justify-center px-6 py-16">
-
-          {/* Heading */}
-          <div className="text-center mb-14 fade-up" style={{ animationDelay: '0s' }}>
+          <div className="text-center mb-14 fade-up">
             <p className="text-sm font-semibold text-orange-500 tracking-widest uppercase mb-3">
               Welcome back, {user?.fullName?.split(' ')[0] || 'there'} 👋
             </p>
@@ -63,111 +58,111 @@ const FeatureSelect: React.FC<FeatureSelectProps> = ({ user, onSelect }) => {
               What would you like to do?
             </h2>
             <p className="text-slate-500 text-lg max-w-md mx-auto">
-              Choose a tool to get started. Both use AI to help you build better products.
+              Choose a tool to get started.
             </p>
           </div>
 
-          {/* Feature Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl w-full fade-up" style={{ animationDelay: '0.1s' }}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full fade-up" style={{ animationDelay: '0.1s' }}>
 
-            {/* Accessibility Card */}
-            <div
-              onClick={() => onSelect('accessibility')}
-              className="card-lift cursor-pointer bg-white rounded-3xl border-2 border-slate-200 hover:border-slate-400 shadow-lg overflow-hidden group"
-            >
-              {/* Top accent */}
+            {/* Fix Accessibility */}
+            <div onClick={() => onSelect('accessibility')}
+              className="card-lift cursor-pointer bg-white rounded-3xl border-2 border-slate-200 hover:border-orange-400 shadow-lg overflow-hidden group">
               <div className="h-2 bg-gradient-to-r from-orange-400 to-amber-500" />
-
-              <div className="p-8">
-                {/* Icon */}
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center mb-6 shadow-lg shadow-orange-200 group-hover:shadow-orange-300 transition-shadow">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="p-7">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center mb-5 shadow-lg shadow-orange-200 group-hover:shadow-orange-300 transition-shadow">
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
                   </svg>
                 </div>
-
-                <div className="flex items-start justify-between mb-3">
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tight"
-                    style={{ fontFamily: '"Playfair Display", serif' }}>
-                    Fix Accessibility
-                  </h3>
-                  <span className="text-xs font-bold px-2.5 py-1 bg-orange-100 text-orange-600 rounded-full">WCAG 2.1</span>
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>Fix Accessibility</h3>
+                  <span className="text-xs font-bold px-2 py-1 bg-orange-100 text-orange-600 rounded-full">WCAG</span>
                 </div>
-
-                <p className="text-slate-500 text-sm leading-relaxed mb-6">
-                  Upload your code files, import errors from the extension, and let AI suggest fixes or auto-correct all accessibility issues.
+                <p className="text-slate-500 text-sm leading-relaxed mb-5">
+                  Upload code files, import errors from the extension, and let AI suggest or auto-fix all accessibility issues.
                 </p>
-
-                <ul className="space-y-2 mb-8">
-                  {['Import errors from browser extension', 'AI-powered code suggestions', 'Auto-correct & download fixed files'].map((f, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm text-slate-600">
-                      <span className="w-4 h-4 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center text-xs flex-shrink-0">✓</span>
+                <ul className="space-y-1.5 mb-6">
+                  {['Import errors from extension', 'AI suggestions & fixes', 'Download corrected files'].map((f, i) => (
+                    <li key={i} className="flex items-center gap-2 text-xs text-slate-600">
+                      <span className="w-4 h-4 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center flex-shrink-0 text-[10px]">✓</span>
                       {f}
                     </li>
                   ))}
                 </ul>
-
-                <div className="flex items-center justify-between pt-5 border-t border-slate-100">
+                <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                   <span className="text-xs text-slate-400 font-mono">accessibility_fixer</span>
-                  <span className="flex items-center gap-1.5 text-sm font-bold text-orange-500 group-hover:gap-2.5 transition-all">
-                    Get started
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
-                    </svg>
+                  <span className="flex items-center gap-1 text-xs font-bold text-orange-500 group-hover:gap-2 transition-all">
+                    Start <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Match Design Card */}
-            <div
-              onClick={() => onSelect('match-design')}
-              className="card-lift cursor-pointer bg-white rounded-3xl border-2 border-slate-200 hover:border-violet-400 shadow-lg overflow-hidden group"
-            >
-              {/* Top accent */}
+            {/* Match Design */}
+            <div onClick={() => onSelect('match-design')}
+              className="card-lift cursor-pointer bg-white rounded-3xl border-2 border-slate-200 hover:border-violet-400 shadow-lg overflow-hidden group relative">
               <div className="h-2 bg-gradient-to-r from-violet-500 to-purple-600" />
-
-              {/* New badge */}
-              <div className="absolute mt-5 ml-auto w-full flex justify-end pr-6 pointer-events-none">
-                <span className="text-xs font-black px-2.5 py-1 bg-violet-500 text-white rounded-full tracking-widest">NEW</span>
-              </div>
-
-              <div className="p-8 pt-10">
-                {/* Icon */}
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mb-6 shadow-lg shadow-violet-200 group-hover:shadow-violet-300 transition-shadow">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            
+              <div className="p-7 pt-9">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mb-5 shadow-lg shadow-violet-200 group-hover:shadow-violet-300 transition-shadow">
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
                   </svg>
                 </div>
-
-                <div className="flex items-start justify-between mb-3">
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tight"
-                    style={{ fontFamily: '"Playfair Display", serif' }}>
-                    Match Design
-                  </h3>
-                  <span className="text-xs font-bold px-2.5 py-1 bg-violet-100 text-violet-600 rounded-full">Figma</span>
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>Match Design</h3>
+                  <span className="text-xs font-bold px-2 py-1 bg-violet-100 text-violet-600 rounded-full">Figma</span>
                 </div>
-
-                <p className="text-slate-500 text-sm leading-relaxed mb-6">
-                  Compare your live website against your Figma design. AI finds every mismatch in colors, fonts, spacing, and layout.
+                <p className="text-slate-500 text-sm leading-relaxed mb-5">
+                  Compare your live site against a Figma design. AI spots every mismatch in colors, fonts, spacing and layout.
                 </p>
-
-                <ul className="space-y-2 mb-8">
-                  {['Paste website URL + Figma link', 'AI compares both visually', 'Get detailed mismatch report'].map((f, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm text-slate-600">
-                      <span className="w-4 h-4 rounded-full bg-violet-100 text-violet-500 flex items-center justify-center text-xs flex-shrink-0">✓</span>
+                <ul className="space-y-1.5 mb-6">
+                  {['Paste website + Figma URL', 'AI visual comparison', 'Detailed mismatch report'].map((f, i) => (
+                    <li key={i} className="flex items-center gap-2 text-xs text-slate-600">
+                      <span className="w-4 h-4 rounded-full bg-violet-100 text-violet-500 flex items-center justify-center flex-shrink-0 text-[10px]">✓</span>
                       {f}
                     </li>
                   ))}
                 </ul>
-
-                <div className="flex items-center justify-between pt-5 border-t border-slate-100">
+                <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                   <span className="text-xs text-slate-400 font-mono">design_matcher</span>
-                  <span className="flex items-center gap-1.5 text-sm font-bold text-violet-500 group-hover:gap-2.5 transition-all">
-                    Get started
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
-                    </svg>
+                  <span className="flex items-center gap-1 text-xs font-bold text-violet-500 group-hover:gap-2 transition-all">
+                    Start <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Website Redesigner */}
+            <div onClick={() => onSelect('website-redesigner')}
+              className="card-lift cursor-pointer bg-white rounded-3xl border-2 border-slate-200 hover:border-indigo-400 shadow-lg overflow-hidden group relative">
+              <div className="h-2 bg-gradient-to-r from-indigo-500 to-blue-600" />
+             
+              <div className="p-7 pt-9">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center mb-5 shadow-lg shadow-indigo-200 group-hover:shadow-indigo-300 transition-shadow">
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                  </svg>
+                </div>
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>Redesigner</h3>
+                  <span className="text-xs font-bold px-2 py-1 bg-indigo-100 text-indigo-600 rounded-full">HTML</span>
+                </div>
+                <p className="text-slate-500 text-sm leading-relaxed mb-5">
+                  Paste any URL and get 3 fully redesigned versions Minimal, Bold & Dark, and Colorful ready to download.
+                </p>
+                <ul className="space-y-1.5 mb-6">
+                  {['Scrapes real content from URL', '3 complete HTML redesigns', 'Live preview + download'].map((f, i) => (
+                    <li key={i} className="flex items-center gap-2 text-xs text-slate-600">
+                      <span className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-500 flex items-center justify-center flex-shrink-0 text-[10px]">✓</span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                  <span className="text-xs text-slate-400 font-mono">website_redesigner</span>
+                  <span className="flex items-center gap-1 text-xs font-bold text-indigo-500 group-hover:gap-2 transition-all">
+                    Start <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
                   </span>
                 </div>
               </div>
@@ -177,7 +172,7 @@ const FeatureSelect: React.FC<FeatureSelectProps> = ({ user, onSelect }) => {
         </main>
 
         <footer className="py-6 text-center">
-          <p className="text-sm text-slate-400">Made with ❤️ by Flow Finder Team • Powered by Gemini AI</p>
+          <p className="text-sm text-slate-400"></p>
         </footer>
       </div>
     </>
