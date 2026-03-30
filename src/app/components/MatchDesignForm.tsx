@@ -159,16 +159,7 @@ const MatchDesignForm: React.FC<MatchDesignFormProps> = ({ onSubmit, onBack, isP
           </div>
         </div>
 
-        {/* Figma token note */}
-        {/* <div className="mt-5 text-center fade-up" style={{ animationDelay: '0.2s' }}>
-          <p className="text-xs text-slate-400">
-            Requires <span className="font-semibold text-slate-500">FIGMA_API_TOKEN</span> in your backend .env —{' '}
-            <a href="https://www.figma.com/developers/api#access-tokens" target="_blank" rel="noopener noreferrer"
-              className="text-violet-500 hover:underline">
-              get one here
-            </a>
-          </p>
-        </div> */}
+        
       </div>
     </>
   );
