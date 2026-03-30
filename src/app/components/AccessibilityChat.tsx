@@ -2,79 +2,122 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 
-/* ── Normalize errors coming from the extension ───────────────────────────
-   Extension errors have: { title, impact, source, selector, pages, count }
-   Gemini errors have:    { errorType, severity, explanation, codeExample, wcagReference }
-── */
-const normalizeError = (err: any, index: number) => ({
-  errorNumber:   err.errorNumber  ?? index + 1,
-  errorType:     err.errorType    ?? err.title ?? err.id ?? 'Accessibility Issue',
-  severity:      err.severity     ?? err.impact ?? 'low',
-  explanation:   err.explanation  ?? err.description ?? err.help ?? '',
-  codeExample:   err.codeExample  ?? null,
-  wcagReference: err.wcagReference ?? (err.tags ? err.tags.filter((t: string) => t.startsWith('wcag')).join(', ') : ''),
-  source:        err.source       ?? null,
-  pages:         err.pages        ?? null,
+interface Suggestion {
+  errorNumber?: number;
+  errorType?: string;
+  severity?: string;
+  location?: string;
+  explanation?: string;
+  originalCode?: string;
+  codeExample?: string;
+  wcagReference?: string;
+  title?: string;
+  impact?: string;
+  source?: string;
+}
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  suggestions?: Suggestion[];
+}
+
+interface Props {
+  errors: Suggestion[] | null;
+  fileName: string;
+  initialChoice: 'suggestions' | 'full-correction';
+  onReset: () => void;
+  sessionId?: string;
+}
+
+const normalize = (e: any): Suggestion => ({
+  errorType:    e.errorType    || e.title     || e.type  || 'Accessibility Issue',
+  severity:     e.severity     || e.impact    || 'low',
+  location:     e.location     || e.selector  || '',
+  explanation:  e.explanation  || e.message   || e.description || '',
+  originalCode: e.originalCode || '',
+  codeExample:  e.codeExample  || e.fix       || '',
+  wcagReference:e.wcagReference|| e.wcag      || '',
+  source:       e.source       || '',
 });
 
-/* ── Impact/severity color map ───────────────────────────────────────────── */
-const IMPACT_STYLES: Record<string, { pill: string; dot: string }> = {
-  critical: { pill: "bg-red-100 text-red-700",      dot: "bg-red-500"    },
-  serious:  { pill: "bg-red-100 text-red-700",       dot: "bg-red-400"    },
-  high:     { pill: "bg-orange-100 text-orange-700", dot: "bg-orange-500" },
-  moderate: { pill: "bg-yellow-100 text-yellow-700", dot: "bg-yellow-500" },
-  minor:    { pill: "bg-blue-100 text-blue-700",     dot: "bg-blue-400"   },
-  low:      { pill: "bg-blue-100 text-blue-700",     dot: "bg-blue-500"   },
-};
-
-/* ── Source badge (lighthouse vs axe) ───────────────────────────────────── */
-const SourceBadge = ({ source }: { source: string | null }) => {
-  if (!source) return null;
-  const isLighthouse = source === 'lighthouse';
+const SeverityBadge = ({ severity }: { severity: string }) => {
+  const s = (severity || 'low').toLowerCase();
+  const styles: Record<string, string> = {
+    critical: 'bg-red-100 text-red-700 border-red-200',
+    serious:  'bg-red-100 text-red-700 border-red-200',
+    moderate: 'bg-orange-100 text-orange-700 border-orange-200',
+    minor:    'bg-yellow-100 text-yellow-700 border-yellow-200',
+    low:      'bg-blue-100 text-blue-700 border-blue-200',
+  };
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-      isLighthouse ? 'bg-purple-100 text-purple-700' : 'bg-cyan-100 text-cyan-700'
-    }`}>
-      {isLighthouse ? '🔦 Lighthouse' : '🪓 Axe'}
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${styles[s] || styles.low}`}>
+      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+      {s.charAt(0).toUpperCase() + s.slice(1)}
     </span>
   );
 };
 
-/* ── Impact badge ────────────────────────────────────────────────────────── */
-const ImpactBadge = ({ severity }: { severity: string }) => {
-  const safe = (severity || 'low').toLowerCase();
-  const s = IMPACT_STYLES[safe] || IMPACT_STYLES.low;
+const SuggestionCard = ({ s, i }: { s: Suggestion; i: number }) => {
+  const [expanded, setExpanded] = useState(false);
+  const norm = normalize(s);
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${s.pill}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-      {safe.charAt(0).toUpperCase() + safe.slice(1)}
-    </span>
-  );
-};
-
-const CodeBlock = ({ code }: { code: string }) => {
-  const [copied, setCopied] = useState(false);
-  return (
-    <div className="mt-3 rounded-xl overflow-hidden border border-slate-700 bg-slate-900">
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-800 border-b border-slate-700">
-        <span className="text-xs text-slate-400 font-mono">code</span>
-        <button
-          onClick={() => { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-          className="flex items-center gap-1 text-xs text-slate-400 hover:text-white transition-colors"
-        >
-          {copied
-            ? <><svg className="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg><span className="text-green-400">Copied!</span></>
-            : <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Copy</>
-          }
-        </button>
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden"
+      style={{ animation: `slideUp 0.3s ease-out ${i * 0.06}s both` }}>
+      <div className="p-4 cursor-pointer" onClick={() => setExpanded(!expanded)}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
+            <div className="min-w-0">
+              <p className="font-semibold text-slate-800 text-sm truncate">{norm.errorType}</p>
+              {norm.location && <p className="text-xs text-orange-500 mt-0.5 truncate">📍 {norm.location}</p>}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <SeverityBadge severity={norm.severity || ''} />
+            {norm.source && (
+              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${norm.source === 'lighthouse' ? 'bg-purple-100 text-purple-700' : 'bg-cyan-100 text-cyan-700'}`}>
+                {norm.source === 'lighthouse' ? '🔦' : '🪓'}
+              </span>
+            )}
+            <svg className={`w-4 h-4 text-slate-400 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+            </svg>
+          </div>
+        </div>
       </div>
-      <pre className="p-4 text-xs text-slate-300 font-mono overflow-x-auto leading-relaxed whitespace-pre-wrap">{code}</pre>
+      {expanded && (
+        <div className="px-4 pb-4 border-t border-slate-50 pt-3 space-y-3">
+          {norm.explanation && (
+            <div>
+              <p className="text-xs font-bold text-slate-500 mb-1">What's wrong</p>
+              <p className="text-sm text-slate-700 leading-relaxed">{norm.explanation}</p>
+            </div>
+          )}
+          {norm.originalCode && (
+            <div>
+              <p className="text-xs font-bold text-red-500 mb-1">❌ Original code</p>
+              <pre className="text-xs bg-red-50 border border-red-100 rounded-xl p-3 overflow-x-auto text-red-800 whitespace-pre-wrap">{norm.originalCode}</pre>
+            </div>
+          )}
+          {norm.codeExample && (
+            <div>
+              <p className="text-xs font-bold text-green-600 mb-1">✅ Fixed code</p>
+              <pre className="text-xs bg-green-50 border border-green-100 rounded-xl p-3 overflow-x-auto text-green-800 whitespace-pre-wrap">{norm.codeExample}</pre>
+            </div>
+          )}
+          {norm.wcagReference && (
+            <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-mono inline-block">{norm.wcagReference}</span>
+          )}
+        </div>
+      )}
     </div>
   );
 };
 
 const BotAvatar = () => (
-  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center flex-shrink-0 shadow-sm">
     <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/>
     </svg>
@@ -95,226 +138,150 @@ const TypingDots = () => (
   </div>
 );
 
-/* ── Message types ───────────────────────────────────────────────────────── */
-interface Msg {
-  id: string | number;
-  role: 'user' | 'assistant';
-  content?: string;
-  text?: string;
-  suggestions?: any[];
-  corrections?: any[];
-}
+const RenderText = ({ text }: { text: string }) => {
+  const parts = text.split(/(```[\s\S]*?```)/g);
+  return (
+    <div className="text-sm text-slate-700 leading-relaxed space-y-2">
+      {parts.map((part, i) => {
+        if (part.startsWith('```')) {
+          const code = part.replace(/^```\w*\n?/, '').replace(/\n?```$/, '');
+          return <pre key={i} className="bg-slate-900 text-green-400 rounded-xl p-3 overflow-x-auto text-xs whitespace-pre-wrap mt-2">{code}</pre>;
+        }
+        return <p key={i} className="whitespace-pre-wrap">{part}</p>;
+      })}
+    </div>
+  );
+};
 
-/* ── Message renderer ────────────────────────────────────────────────────── */
-const ChatMessage = ({ msg }: { msg: Msg }) => {
+const ChatMessage = ({ msg }: { msg: Message }) => {
   if (msg.role === 'user') {
     return (
-      <div className="flex justify-end" style={{ animation: 'slideInUp 0.3s ease-out both' }}>
-        <div className="max-w-xs bg-gradient-to-br from-orange-500 to-amber-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm">
-          <p className="text-sm leading-relaxed">{msg.content}</p>
+      <div className="flex justify-end" style={{ animation: 'slideUp 0.3s ease-out both' }}>
+        <div className="max-w-sm bg-gradient-to-br from-orange-500 to-amber-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm">
+          <p className="text-sm leading-relaxed">{msg.text}</p>
         </div>
       </div>
     );
   }
-
   return (
-    <div className="flex items-start gap-3" style={{ animation: 'slideInUp 0.3s ease-out both' }}>
+    <div className="flex items-start gap-3" style={{ animation: 'slideUp 0.3s ease-out both' }}>
       <BotAvatar />
       <div className="flex-1 min-w-0 space-y-3">
-
         {msg.text && (
-          <div className="bg-white border border-slate-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm inline-block max-w-lg">
-            <p className="text-sm text-slate-700 leading-relaxed">{msg.text}</p>
+          <div className="bg-white border border-slate-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm max-w-2xl">
+            <RenderText text={msg.text} />
           </div>
         )}
-
-        {/* Suggestion cards */}
-        {msg.suggestions && (
-          <div className="space-y-3">
-            {msg.suggestions.map((err, i) => (
-              <div key={i} className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden"
-                style={{ animation: `slideInUp 0.35s ease-out ${i * 0.07}s both` }}>
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
-                        {err.errorNumber}
-                      </span>
-                      <h3 className="font-semibold text-slate-800 text-sm leading-tight">{err.errorType}</h3>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <SourceBadge source={err.source} />
-                      <ImpactBadge severity={err.severity} />
-                    </div>
-                  </div>
-                  {err.explanation && (
-                    <p className="text-sm text-slate-600 leading-relaxed mb-2">{err.explanation}</p>
-                  )}
-                  {err.wcagReference && (
-                    <p className="text-xs font-medium text-orange-600">{err.wcagReference}</p>
-                  )}
-                  {err.pages && err.pages.length > 0 && (
-                    <p className="text-xs text-slate-400 mt-1">
-                      Found on: {err.pages.map((p: string) => { try { return new URL(p).pathname || '/'; } catch { return p; } }).join(', ')}
-                    </p>
-                  )}
-                  {err.codeExample && <CodeBlock code={err.codeExample} />}
-                </div>
-              </div>
-            ))}
+        {msg.suggestions && msg.suggestions.length > 0 && (
+          <div className="space-y-2">
+            {msg.suggestions.map((s, i) => <SuggestionCard key={i} s={s} i={i} />)}
           </div>
         )}
-
-        {/* Correction panel */}
-        {msg.corrections && (
-          <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden"
-            style={{ animation: 'slideInUp 0.35s ease-out both' }}>
-            <div className="px-5 py-3.5 border-b border-green-100 bg-green-50 flex items-center gap-2">
-              <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-              <span className="text-sm font-semibold text-green-800">{msg.corrections.length} issues corrected & downloaded</span>
-            </div>
-            <div className="divide-y divide-slate-100">
-              {msg.corrections.map((err, i) => (
-                <div key={i} className="p-5" style={{ animation: `slideInUp 0.3s ease-out ${i*0.06}s both` }}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <SourceBadge source={err.source} />
-                    <ImpactBadge severity={err.severity} />
-                    <span className="text-sm font-medium text-slate-700">{err.errorType}</span>
-                  </div>
-                  {err.explanation && (
-                    <p className="text-xs text-slate-500 mb-2">{err.explanation}</p>
-                  )}
-                  {err.codeExample && <CodeBlock code={err.codeExample} />}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
       </div>
     </div>
   );
 };
 
-/* ── Main component ──────────────────────────────────────────────────────── */
-interface Props {
-  errors?: any[] | null;
-  fileName?: string;
-  initialChoice: 'suggestions' | 'full-correction';
-  onReset: () => void;
-}
+const AccessibilityChat: React.FC<Props> = ({ errors, fileName, initialChoice, onReset, sessionId: propSessionId }) => {
+  const suggestions = (errors || []).map(normalize);
+  const criticalCount = suggestions.filter(s => s.severity === 'critical' || s.severity === 'serious').length;
 
-const AccessibilityChat: React.FC<Props> = ({ errors: propErrors, fileName, initialChoice, onReset }) => {
+  const [messages, setMessages]   = useState<Message[]>([]);
+  const [isTyping, setIsTyping]   = useState(false);
+  const [inputText, setInputText] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [sessionId, setSessionId] = useState(propSessionId || '');
 
-  // No dummy data — only real errors from the extension
-  const errors = (propErrors ?? []).map(normalizeError);
-
-  const criticalCount = errors.filter(e =>
-    ['critical', 'serious'].includes((e.severity || '').toLowerCase())
-  ).length;
-
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef  = useRef<HTMLInputElement>(null);
   const didRun    = useRef(false);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, isTyping]);
+  useEffect(() => { if (propSessionId) setSessionId(propSessionId); }, [propSessionId]);
 
   useEffect(() => {
     if (didRun.current) return;
     didRun.current = true;
-    runFlow();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    runInitialFlow();
   }, []);
 
-  const addMsg = (msg: Omit<Msg, 'id'>) =>
-    setMessages(prev => [...prev, { id: Date.now() + Math.random(), ...msg }]);
+  const addMsg = (msg: Omit<Message, 'id'>) =>
+    setMessages(prev => [...prev, { id: `${Date.now()}-${Math.random()}`, ...msg }]);
 
-  const runFlow = async () => {
-    const isSuggestions = initialChoice === 'suggestions';
-
-    // No errors case
-    if (errors.length === 0) {
-      addMsg({
-        role: 'assistant',
-        text: `No accessibility errors were found. Please import errors from the extension before proceeding.`,
-      });
+  const runInitialFlow = async () => {
+    if (suggestions.length === 0) {
+      addMsg({ role: 'assistant', text: `I've scanned "${fileName}" and found no accessibility issues. Your code looks great! 🎉` });
       return;
     }
-
-    // 1. Greeting
-    addMsg({
-      role: 'assistant',
-      text: `I've scanned "${fileName || 'your file'}" and found ${errors.length} accessibility issue${errors.length !== 1 ? 's' : ''} — ${criticalCount} critical/serious. ${isSuggestions ? 'Here are my suggestions:' : 'Correcting all issues now…'}`,
-    });
-
-    // 2. Show user's choice as their message
+    addMsg({ role: 'assistant', text: `I've scanned "${fileName}" and found ${suggestions.length} accessibility issue${suggestions.length !== 1 ? 's' : ''} — ${criticalCount} critical/serious. Here are my suggestions:` });
     await new Promise(r => setTimeout(r, 400));
-    addMsg({ role: 'user', content: isSuggestions ? 'Show Suggestions' : 'Correct My Code' });
-
-    // 3. Typing delay
+    addMsg({ role: 'user', text: 'Show Suggestions' });
     await new Promise(r => setTimeout(r, 300));
     setIsTyping(true);
-    await new Promise(r => setTimeout(r, 1000 + Math.random() * 600));
+    await new Promise(r => setTimeout(r, 800));
     setIsTyping(false);
+    addMsg({ role: 'assistant', text: `Here are all ${suggestions.length} accessibility issues with explanations and code fixes:`, suggestions });
+    await new Promise(r => setTimeout(r, 500));
+    addMsg({
+      role: 'assistant',
+      text: propSessionId
+        ? `💬 Chat is enabled! Ask me anything about these issues:\n• "Explain issue #2"\n• "How do I fix the button issue?"\n• "Which should I fix first?"`
+        : `✓ Analysis complete. Review the issues above.`,
+    });
+  };
 
-    // 4. Results
-    if (isSuggestions) {
-      addMsg({
-        role: 'assistant',
-        text: `Here are all ${errors.length} accessibility issues with explanations and code fixes:`,
-        suggestions: errors,
+  const handleSend = async () => {
+    const text = inputText.trim();
+    if (!text || isSending || !sessionId) return;
+    setInputText('');
+    addMsg({ role: 'user', text });
+    setIsSending(true);
+    setIsTyping(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/accessibility/chat', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, message: text }),
       });
-    } else {
-      addMsg({
-        role: 'assistant',
-        text: `Done! Your corrected file has been downloaded. Here's a summary of all ${errors.length} fixes applied:`,
-        corrections: errors,
-      });
+      const data = await response.json();
+      setIsTyping(false);
+      addMsg({ role: 'assistant', text: data.success ? data.reply : `❌ ${data.message}` });
+    } catch {
+      setIsTyping(false);
+      addMsg({ role: 'assistant', text: '❌ Network error. Please try again.' });
+    } finally {
+      setIsSending(false);
+      inputRef.current?.focus();
     }
   };
+
+  const quickQuestions = ['Explain the most critical issue', 'Show me how to fix issue #1', 'Which issue should I fix first?', 'What is WCAG 2.1?'];
 
   return (
     <>
       <style>{`
-        @keyframes slideInUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes dotBounce {
-          0%, 60%, 100% { transform: translateY(0); }
-          30%           { transform: translateY(-5px); }
-        }
-        .chat-scroll::-webkit-scrollbar       { width: 4px; }
-        .chat-scroll::-webkit-scrollbar-track { background: transparent; }
-        .chat-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 99px; }
+        @keyframes slideUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes dotBounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+        .chat-scroll::-webkit-scrollbar{width:4px}
+        .chat-scroll::-webkit-scrollbar-track{background:transparent}
+        .chat-scroll::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:99px}
       `}</style>
 
-      <div className="flex flex-col h-full min-h-0">
-
-        {/* Sub-header */}
-        <div className="flex-shrink-0 bg-white/70 backdrop-blur-md border-b border-orange-100 px-6 py-3">
-          <div className="max-w-3xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1.5 text-xs text-slate-500 bg-white border border-slate-200 px-3 py-1.5 rounded-full shadow-sm">
+      <div className="flex flex-col h-screen min-h-0">
+        {/* Header */}
+        <div className="flex-shrink-0 bg-white/80 backdrop-blur-md border-b border-orange-100 px-6 py-3">
+          <div className="max-w-3xl mx-auto flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="flex items-center gap-1.5 text-xs bg-white border border-slate-200 text-slate-500 px-3 py-1.5 rounded-full shadow-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-                {errors.length} issues · {criticalCount} critical
+                {suggestions.length} issues · {criticalCount} critical
               </span>
-              <span className="text-xs px-3 py-1.5 rounded-full font-medium border shadow-sm bg-white border-slate-200 text-slate-600">
-                {initialChoice === 'suggestions' ? '💡 Suggestions mode' : '🔧 Full correction mode'}
-              </span>
+              <span className="text-xs bg-white border border-slate-200 text-slate-500 px-3 py-1.5 rounded-full shadow-sm truncate max-w-xs">📄 {fileName}</span>
+              {sessionId && <span className="text-xs bg-green-50 border border-green-200 text-green-600 px-3 py-1.5 rounded-full">💬 Chat enabled</span>}
             </div>
-            <button
-              onClick={onReset}
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-orange-600 transition-colors px-3 py-1.5 bg-white border border-slate-200 rounded-full hover:border-orange-300 shadow-sm"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-              </svg>
+            <button onClick={onReset} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-orange-600 px-3 py-1.5 bg-white border border-slate-200 rounded-full hover:border-orange-300 shadow-sm transition-colors">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
               Upload New File
             </button>
           </div>
@@ -329,15 +296,48 @@ const AccessibilityChat: React.FC<Props> = ({ errors: propErrors, fileName, init
           </div>
         </div>
 
-        {/* Bottom status bar */}
-        <div className="flex-shrink-0 bg-white/70 backdrop-blur-md border-t border-orange-100 px-6 py-3">
-          <div className="max-w-3xl mx-auto text-center">
-            <p className="text-xs text-slate-400">
-              {isTyping ? 'AI is thinking…' : '✓ Analysis complete — scroll up to review results'}
-            </p>
+        {/* Quick questions */}
+        {sessionId && messages.length > 3 && !isSending && (
+          <div className="flex-shrink-0 px-4 pb-2">
+            <div className="max-w-3xl mx-auto flex gap-2 flex-wrap">
+              {quickQuestions.map((q, i) => (
+                <button key={i} onClick={() => { setInputText(q); inputRef.current?.focus(); }}
+                  className="text-xs px-3 py-1.5 bg-white border border-orange-200 text-orange-600 rounded-full hover:bg-orange-50 transition-colors">
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Input */}
+        <div className="flex-shrink-0 bg-white/80 backdrop-blur-md border-t border-orange-100 px-4 py-4">
+          <div className="max-w-3xl mx-auto">
+            {sessionId ? (
+              <div className="flex items-center gap-3">
+                <input ref={inputRef} type="text" value={inputText}
+                  onChange={e => setInputText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                  placeholder="Ask about any accessibility issue… (Enter to send)"
+                  disabled={isSending}
+                  className="flex-1 px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-orange-400 transition-colors disabled:opacity-50"
+                />
+                <button onClick={handleSend} disabled={!inputText.trim() || isSending}
+                  className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all flex-shrink-0
+                    ${inputText.trim() && !isSending
+                      ? 'bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-lg hover:-translate-y-0.5'
+                      : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}>
+                  {isSending
+                    ? <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                    : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                  }
+                </button>
+              </div>
+            ) : (
+              <p className="text-center text-xs text-slate-400">✓ Analysis complete — scroll up to review results</p>
+            )}
           </div>
         </div>
-
       </div>
     </>
   );
