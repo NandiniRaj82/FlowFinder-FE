@@ -44,6 +44,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [redesignerWebsiteUrl, setRedesignerWebsiteUrl] = useState('');
   const [redesignerPageTitle, setRedesignerPageTitle]   = useState('');
   const [redesignerScreenshot, setRedesignerScreenshot] = useState('');
+  const [redesignerStats, setRedesignerStats]           = useState<any>(null);
 
   /* ── Full reset ──────────────────────────────────────────────────────── */
   const handleFullReset = () => {
@@ -86,8 +87,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       if (!response.ok) { const err = await response.json(); throw new Error(err.message || 'Processing failed'); }
       if (choice === 'suggestions') {
         const data = await response.json();
-        console.log('FULL API RESPONSE:', JSON.stringify(data, null, 2)); // ADD THIS
-        console.log('SESSION ID:', data.sessionId); // ADD THIS
         const allSuggestions = data.results
           .filter((r: any) => r.success && r.suggestions)
           .flatMap((r: any) => Array.isArray(r.suggestions) ? r.suggestions : [r.suggestions]);
@@ -141,7 +140,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   };
 
   /* ── Website Redesigner handlers ─────────────────────────────────────── */
-  const handleRedesignerSubmit = async (websiteUrl: string) => {
+  const handleRedesignerSubmit = async (websiteUrl: string, customPrompt?: string, framework?: string) => {
     setRedesignerProcessing(true); setRedesignerWebsiteUrl(websiteUrl);
     try {
       const token = localStorage.getItem('token');
@@ -149,13 +148,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       const response = await fetch('http://localhost:5000/api/redesign', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ websiteUrl }),
+        body: JSON.stringify({ websiteUrl, customPrompt, framework }),
       });
       if (!response.ok) { const err = await response.json(); throw new Error(err.message || 'Redesign failed'); }
       const data = await response.json();
       setRedesignerDesigns(data.designs || []);
       setRedesignerPageTitle(data.pageTitle || '');
       setRedesignerScreenshot(data.screenshotBase64 || '');
+      setRedesignerStats(data.stats || null);
       setRedesignerStage('results');
     } catch (error: any) {
       if (error.message.includes('Not authenticated')) { setTimeout(() => { localStorage.clear(); window.location.href = '/signin'; }, 2000); }
@@ -165,7 +165,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   const handleRedesignerReset = () => {
     setRedesignerStage('form'); setRedesignerDesigns([]);
-    setRedesignerWebsiteUrl(''); setRedesignerPageTitle(''); setRedesignerScreenshot('');
+    setRedesignerWebsiteUrl(''); setRedesignerPageTitle(''); setRedesignerScreenshot(''); setRedesignerStats(null);
   };
 
   /* ── Derived ─────────────────────────────────────────────────────────── */
@@ -208,12 +208,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 }`} />
                 <h3 className="text-xl font-bold text-slate-800 mb-2">
                   {feature === 'match-design'       ? 'Comparing designs with Gemini Vision…' :
-                   feature === 'website-redesigner' ? 'Scraping content & generating 3 redesigns…' :
+                   feature === 'website-redesigner' ? 'Scraping content & generating redesigns…' :
                    `Processing ${totalFiles} file(s) with Gemini AI…`}
                 </h3>
                 <p className="text-sm text-slate-600">
                   {feature === 'match-design'       ? 'Screenshotting site, fetching Figma, running comparison. ~30s.' :
-                   feature === 'website-redesigner' ? 'Generating 3 full HTML pages. Please wait ~60s.' :
+                   feature === 'website-redesigner' ? 'Scraping all content and generating full redesigns. Please wait ~60-90s.' :
                    `Analyzing your code. This may take ${totalFiles > 5 ? 'a few minutes' : 'a moment'}.`}
                 </p>
               </div>
@@ -369,7 +369,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 )}
                 {redesignerStage === 'results' && (
                   <div className="animate-fade-in">
-                    <WebsiteRedesignerResults designs={redesignerDesigns} websiteUrl={redesignerWebsiteUrl} pageTitle={redesignerPageTitle} screenshotBase64={redesignerScreenshot} onReset={handleRedesignerReset} />
+                    <WebsiteRedesignerResults designs={redesignerDesigns} websiteUrl={redesignerWebsiteUrl} pageTitle={redesignerPageTitle} screenshotBase64={redesignerScreenshot} stats={redesignerStats} onReset={handleRedesignerReset} />
                   </div>
                 )}
               </>
