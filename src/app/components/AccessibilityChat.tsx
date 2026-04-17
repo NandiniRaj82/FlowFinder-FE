@@ -191,13 +191,33 @@ const AccessibilityChat: React.FC<Props> = ({ errors, fileName, initialChoice, o
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [sessionId, setSessionId] = useState(propSessionId || '');
+  // Track whether chat hint message has been added
+  const chatHintAdded = useRef(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
   const didRun    = useRef(false);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, isTyping]);
-  useEffect(() => { if (propSessionId) setSessionId(propSessionId); }, [propSessionId]);
+
+  // When sessionId arrives (after API response), update state and add chat hint
+  useEffect(() => {
+    if (propSessionId && propSessionId !== sessionId) {
+      setSessionId(propSessionId);
+      // Add chat hint message if not already added
+      if (!chatHintAdded.current) {
+        chatHintAdded.current = true;
+        setMessages(prev => [
+          ...prev,
+          {
+            id: `hint-${Date.now()}`,
+            role: 'assistant',
+            text: `💬 Chat is enabled! Ask me anything about these issues:\n• "Explain issue #1 in detail"\n• "How do I fix the button accessibility issue?"\n• "Which issue should I fix first?"\n• "What is WCAG 2.1?"`,
+          }
+        ]);
+      }
+    }
+  }, [propSessionId]);
 
   useEffect(() => {
     if (didRun.current) return;
@@ -213,21 +233,22 @@ const AccessibilityChat: React.FC<Props> = ({ errors, fileName, initialChoice, o
       addMsg({ role: 'assistant', text: `I've scanned "${fileName}" and found no accessibility issues. Your code looks great! 🎉` });
       return;
     }
-    addMsg({ role: 'assistant', text: `I've scanned "${fileName}" and found ${suggestions.length} accessibility issue${suggestions.length !== 1 ? 's' : ''} — ${criticalCount} critical/serious. Here are my suggestions:` });
+    addMsg({
+      role: 'assistant',
+      text: `I've scanned "${fileName}" and found ${suggestions.length} accessibility issue${suggestions.length !== 1 ? 's' : ''} — ${criticalCount} critical/serious. Here are my suggestions:`,
+    });
     await new Promise(r => setTimeout(r, 400));
     addMsg({ role: 'user', text: 'Show Suggestions' });
     await new Promise(r => setTimeout(r, 300));
     setIsTyping(true);
     await new Promise(r => setTimeout(r, 800));
     setIsTyping(false);
-    addMsg({ role: 'assistant', text: `Here are all ${suggestions.length} accessibility issues with explanations and code fixes:`, suggestions });
-    await new Promise(r => setTimeout(r, 500));
     addMsg({
       role: 'assistant',
-      text: propSessionId
-        ? `💬 Chat is enabled! Ask me anything about these issues:\n• "Explain issue #2"\n• "How do I fix the button issue?"\n• "Which should I fix first?"`
-        : `✓ Analysis complete. Review the issues above.`,
+      text: `Here are all ${suggestions.length} accessibility issues with explanations and code fixes:`,
+      suggestions,
     });
+    // Chat hint will be added by the propSessionId useEffect once sessionId arrives
   };
 
   const handleSend = async () => {
@@ -256,7 +277,12 @@ const AccessibilityChat: React.FC<Props> = ({ errors, fileName, initialChoice, o
     }
   };
 
-  const quickQuestions = ['Explain the most critical issue', 'Show me how to fix issue #1', 'Which issue should I fix first?', 'What is WCAG 2.1?'];
+  const quickQuestions = [
+    'Explain the most critical issue',
+    'Show me how to fix issue #1',
+    'Which issue should I fix first?',
+    'What is WCAG 2.1?',
+  ];
 
   return (
     <>
@@ -269,7 +295,8 @@ const AccessibilityChat: React.FC<Props> = ({ errors, fileName, initialChoice, o
       `}</style>
 
       <div className="flex flex-col h-screen min-h-0">
-        {/* Header */}
+
+        {/* Sub-header */}
         <div className="flex-shrink-0 bg-white/80 backdrop-blur-md border-b border-orange-100 px-6 py-3">
           <div className="max-w-3xl mx-auto flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2 flex-wrap">
@@ -277,11 +304,20 @@ const AccessibilityChat: React.FC<Props> = ({ errors, fileName, initialChoice, o
                 <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
                 {suggestions.length} issues · {criticalCount} critical
               </span>
-              <span className="text-xs bg-white border border-slate-200 text-slate-500 px-3 py-1.5 rounded-full shadow-sm truncate max-w-xs">📄 {fileName}</span>
-              {sessionId && <span className="text-xs bg-green-50 border border-green-200 text-green-600 px-3 py-1.5 rounded-full">💬 Chat enabled</span>}
+              <span className="text-xs bg-white border border-slate-200 text-slate-500 px-3 py-1.5 rounded-full shadow-sm truncate max-w-xs">
+                📄 {fileName}
+              </span>
+              {sessionId && (
+                <span className="text-xs bg-green-50 border border-green-200 text-green-600 px-3 py-1.5 rounded-full">
+                  💬 Chat enabled
+                </span>
+              )}
             </div>
-            <button onClick={onReset} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-orange-600 px-3 py-1.5 bg-white border border-slate-200 rounded-full hover:border-orange-300 shadow-sm transition-colors">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <button onClick={onReset}
+              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-orange-600 px-3 py-1.5 bg-white border border-slate-200 rounded-full hover:border-orange-300 shadow-sm transition-colors">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
               Upload New File
             </button>
           </div>
@@ -296,12 +332,13 @@ const AccessibilityChat: React.FC<Props> = ({ errors, fileName, initialChoice, o
           </div>
         </div>
 
-        {/* Quick questions */}
+        {/* Quick questions — only show after chat hint appears */}
         {sessionId && messages.length > 3 && !isSending && (
           <div className="flex-shrink-0 px-4 pb-2">
             <div className="max-w-3xl mx-auto flex gap-2 flex-wrap">
               {quickQuestions.map((q, i) => (
-                <button key={i} onClick={() => { setInputText(q); inputRef.current?.focus(); }}
+                <button key={i}
+                  onClick={() => { setInputText(q); inputRef.current?.focus(); }}
                   className="text-xs px-3 py-1.5 bg-white border border-orange-200 text-orange-600 rounded-full hover:bg-orange-50 transition-colors">
                   {q}
                 </button>
@@ -310,12 +347,15 @@ const AccessibilityChat: React.FC<Props> = ({ errors, fileName, initialChoice, o
           </div>
         )}
 
-        {/* Input */}
+        {/* Input bar */}
         <div className="flex-shrink-0 bg-white/80 backdrop-blur-md border-t border-orange-100 px-4 py-4">
           <div className="max-w-3xl mx-auto">
             {sessionId ? (
               <div className="flex items-center gap-3">
-                <input ref={inputRef} type="text" value={inputText}
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputText}
                   onChange={e => setInputText(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
                   placeholder="Ask about any accessibility issue… (Enter to send)"
@@ -334,10 +374,13 @@ const AccessibilityChat: React.FC<Props> = ({ errors, fileName, initialChoice, o
                 </button>
               </div>
             ) : (
-              <p className="text-center text-xs text-slate-400">✓ Analysis complete — scroll up to review results</p>
+              <p className="text-center text-xs text-slate-400">
+                ✓ Analysis complete — scroll up to review results
+              </p>
             )}
           </div>
         </div>
+
       </div>
     </>
   );
