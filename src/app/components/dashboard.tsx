@@ -31,11 +31,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [chatSessionId, setChatSessionId]             = useState<string>('');
 
   /* ── Match Design ────────────────────────────────────────────────────── */
-  const [matchStage, setMatchStage]           = useState<'form' | 'chat'>('form');
-  const [matchProcessing, setMatchProcessing] = useState(false);
-  const [matchMismatches, setMatchMismatches] = useState<any[]>([]);
-  const [matchWebsiteUrl, setMatchWebsiteUrl] = useState('');
-  const [matchFigmaUrl, setMatchFigmaUrl]     = useState('');
+  const [matchStage, setMatchStage]                   = useState<'form' | 'chat'>('form');
+  const [matchProcessing, setMatchProcessing]         = useState(false);
+  const [matchMismatches, setMatchMismatches]         = useState<any[]>([]);
+  const [matchWebsiteUrl, setMatchWebsiteUrl]         = useState('');
+  const [matchFigmaUrl, setMatchFigmaUrl]             = useState('');
 
   /* ── Website Redesigner ──────────────────────────────────────────────── */
   const [redesignerStage, setRedesignerStage]           = useState<'form' | 'results'>('form');
@@ -45,6 +45,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [redesignerPageTitle, setRedesignerPageTitle]   = useState('');
   const [redesignerScreenshot, setRedesignerScreenshot] = useState('');
   const [redesignerStats, setRedesignerStats]           = useState<any>(null);
+  const [redesignerStatus, setRedesignerStatus]         = useState('');
+  const [redesignerPendingStyles, setRedesignerPendingStyles] = useState<string[]>([]);
 
   /* ── Full reset ──────────────────────────────────────────────────────── */
   const handleFullReset = () => {
@@ -53,8 +55,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     setSelectedChoice(null); setApiResult(null); setStage('upload');
     setMatchStage('form'); setMatchProcessing(false); setMatchMismatches([]);
     setMatchWebsiteUrl(''); setMatchFigmaUrl('');
+
     setRedesignerStage('form'); setRedesignerProcessing(false); setRedesignerDesigns([]);
     setRedesignerWebsiteUrl(''); setRedesignerPageTitle(''); setRedesignerScreenshot('');
+    setRedesignerStatus(''); setRedesignerPendingStyles([]);
   };
 
   /* ── Accessibility handlers ──────────────────────────────────────────── */
@@ -140,32 +144,107 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   };
 
   /* ── Website Redesigner handlers ─────────────────────────────────────── */
-  const handleRedesignerSubmit = async (websiteUrl: string, customPrompt?: string, framework?: string) => {
-    setRedesignerProcessing(true); setRedesignerWebsiteUrl(websiteUrl);
+  const handleRedesignerSubmit = async (
+    websiteUrl: string,
+    selectedPresets: string[],
+    customPrompts: string[],
+    framework?: string,
+  ) => {
+    // Build the exact list of pending style keys that the backend will stream
+    const customPending = customPrompts
+      .filter(p => p.trim().length > 5)
+      .map((_, i) => `custom_${i + 1}`);
+    const initialPending = [...selectedPresets, ...customPending];
+
+    setRedesignerProcessing(true);
+    setRedesignerWebsiteUrl(websiteUrl);
+    setRedesignerDesigns([]);
+    setRedesignerPendingStyles(initialPending);
+    setRedesignerStatus('Starting…');
+
     try {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('Not authenticated. Please login again.');
+
       const response = await fetch('http://localhost:5000/api/redesign', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ websiteUrl, customPrompt, framework }),
+        body: JSON.stringify({ websiteUrl, selectedStyles: selectedPresets, customPrompts, framework }),
       });
+
       if (!response.ok) { const err = await response.json(); throw new Error(err.message || 'Redesign failed'); }
-      const data = await response.json();
-      setRedesignerDesigns(data.designs || []);
-      setRedesignerPageTitle(data.pageTitle || '');
-      setRedesignerScreenshot(data.screenshotBase64 || '');
-      setRedesignerStats(data.stats || null);
-      setRedesignerStage('results');
+      if (!response.body) throw new Error('No response body for SSE stream');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let firstDesignReceived = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const chunks = buffer.split('\n\n');
+        buffer = chunks.pop() ?? '';
+
+        for (const chunk of chunks) {
+          const lines = chunk.split('\n');
+          let eventName = '';
+          let dataStr = '';
+          for (const line of lines) {
+            if (line.startsWith('event: ')) eventName = line.slice(7).trim();
+            if (line.startsWith('data: '))  dataStr  = line.slice(6).trim();
+          }
+          if (!eventName || !dataStr) continue;
+
+          try {
+            const payload = JSON.parse(dataStr);
+
+            if (eventName === 'status') {
+              setRedesignerStatus(payload.message || '');
+            } else if (eventName === 'meta') {
+              setRedesignerPageTitle(payload.pageTitle || '');
+              setRedesignerScreenshot(payload.screenshotBase64 || '');
+              setRedesignerStats(payload.stats || null);
+            } else if (eventName === 'design') {
+              const arrivedStyle: string = payload.design?.style || '';
+              setRedesignerDesigns(prev => [...prev, payload.design]);
+              // Remove the arrived style from the pending list
+              setRedesignerPendingStyles(prev => prev.filter(s => s !== arrivedStyle));
+              // Switch to results page on the very first design
+              if (!firstDesignReceived) {
+                firstDesignReceived = true;
+                setRedesignerStage('results');
+              }
+            } else if (eventName === 'done') {
+              // Clear all remaining pending styles and stop the processing indicator
+              setRedesignerPendingStyles([]);
+              setRedesignerProcessing(false);
+              setRedesignerStatus('');
+              if (!firstDesignReceived) setRedesignerStage('results');
+            } else if (eventName === 'error') {
+              throw new Error(payload.message || 'Stream error');
+            }
+          } catch (parseErr) {
+            // ignore malformed chunks
+          }
+        }
+      }
     } catch (error: any) {
-      if (error.message.includes('Not authenticated')) { setTimeout(() => { localStorage.clear(); window.location.href = '/signin'; }, 2000); }
+      if (error.message.includes('Not authenticated')) {
+        setTimeout(() => { localStorage.clear(); window.location.href = '/signin'; }, 2000);
+      }
       alert(`❌ Error: ${error.message}`);
-    } finally { setRedesignerProcessing(false); }
+      setRedesignerPendingStyles([]);
+      setRedesignerProcessing(false);
+    }
   };
 
   const handleRedesignerReset = () => {
     setRedesignerStage('form'); setRedesignerDesigns([]);
     setRedesignerWebsiteUrl(''); setRedesignerPageTitle(''); setRedesignerScreenshot(''); setRedesignerStats(null);
+    setRedesignerPendingStyles([]);
   };
 
   /* ── Derived ─────────────────────────────────────────────────────────── */
@@ -198,8 +277,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       {feature !== null && (
         <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 relative overflow-hidden flex flex-col">
 
-          {/* Loading overlay */}
-          {anyProcessing && (
+          {/* Loading overlay — for redesigner, only show while still on the form stage */}
+          {anyProcessing && !(feature === 'website-redesigner' && redesignerStage === 'results') && (
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
               <div className="bg-white rounded-2xl p-8 shadow-2xl text-center max-w-md">
                 <div className={`w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4 ${
@@ -208,12 +287,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 }`} />
                 <h3 className="text-xl font-bold text-slate-800 mb-2">
                   {feature === 'match-design'       ? 'Comparing designs with Gemini Vision…' :
-                   feature === 'website-redesigner' ? 'Scraping content & generating redesigns…' :
+                   feature === 'website-redesigner' ? (redesignerStatus || 'Scraping content & generating redesigns…') :
                    `Processing ${totalFiles} file(s) with Gemini AI…`}
                 </h3>
                 <p className="text-sm text-slate-600">
                   {feature === 'match-design'       ? 'Screenshotting site, fetching Figma, running comparison. ~30s.' :
-                   feature === 'website-redesigner' ? 'Scraping all content and generating full redesigns. Please wait ~60-90s.' :
+                   feature === 'website-redesigner' ? 'Designs appear as they finish — first card coming up soon.' :
                    `Analyzing your code. This may take ${totalFiles > 5 ? 'a few minutes' : 'a moment'}.`}
                 </p>
               </div>
@@ -353,7 +432,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 )}
                 {matchStage === 'chat' && (
                   <div className="animate-fade-in h-full">
-                    <MatchDesignChat mismatches={matchMismatches} websiteUrl={matchWebsiteUrl} figmaUrl={matchFigmaUrl} onReset={handleMatchReset} />
+                    <MatchDesignChat
+                      mismatches={matchMismatches}
+                      websiteUrl={matchWebsiteUrl}
+                      figmaUrl={matchFigmaUrl}
+                      onReset={handleMatchReset}
+                    />
                   </div>
                 )}
               </>
@@ -369,7 +453,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 )}
                 {redesignerStage === 'results' && (
                   <div className="animate-fade-in">
-                    <WebsiteRedesignerResults designs={redesignerDesigns} websiteUrl={redesignerWebsiteUrl} pageTitle={redesignerPageTitle} screenshotBase64={redesignerScreenshot} stats={redesignerStats} onReset={handleRedesignerReset} />
+                    <WebsiteRedesignerResults designs={redesignerDesigns} websiteUrl={redesignerWebsiteUrl} pageTitle={redesignerPageTitle} screenshotBase64={redesignerScreenshot} stats={redesignerStats} onReset={handleRedesignerReset} isStreaming={redesignerProcessing} pendingStyles={redesignerPendingStyles} />
                   </div>
                 )}
               </>

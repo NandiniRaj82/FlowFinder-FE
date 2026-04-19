@@ -28,6 +28,8 @@ interface Props {
   screenshotBase64?: string;
   stats?: Stats;
   onReset: () => void;
+  isStreaming?: boolean;   // true while SSE is still sending designs
+  pendingStyles?: string[]; // styles still being generated (ordered)
 }
 
 const STYLE_META: Record<string, { gradient: string; border: string; badge: string; accentText: string; desc: string }> = {
@@ -35,6 +37,65 @@ const STYLE_META: Record<string, { gradient: string; border: string; badge: stri
   bold:     { gradient: 'from-slate-900 to-slate-800',                   border: 'border-slate-700 hover:border-blue-500',    badge: 'bg-blue-500/20 text-blue-300',    accentText: 'text-blue-400',    desc: 'Dark, powerful, high contrast' },
   colorful: { gradient: 'from-pink-500 via-purple-500 to-indigo-500',    border: 'border-purple-300 hover:border-purple-500', badge: 'bg-purple-100 text-purple-700',   accentText: 'text-purple-600',  desc: 'Vibrant, creative, gradient-rich' },
   custom:   { gradient: 'from-amber-400 via-orange-500 to-rose-500',     border: 'border-amber-300 hover:border-amber-500',   badge: 'bg-amber-100 text-amber-700',     accentText: 'text-amber-600',   desc: 'Your custom design style' },
+  custom_1: { gradient: 'from-amber-400 via-orange-500 to-rose-500',     border: 'border-amber-300 hover:border-amber-500',   badge: 'bg-amber-100 text-amber-700',     accentText: 'text-amber-600',   desc: 'Your custom design style 1' },
+  custom_2: { gradient: 'from-emerald-400 via-teal-500 to-cyan-500',     border: 'border-emerald-300 hover:border-emerald-500', badge: 'bg-emerald-100 text-emerald-700', accentText: 'text-emerald-600', desc: 'Your custom design style 2' },
+  custom_3: { gradient: 'from-rose-400 via-red-500 to-orange-500',       border: 'border-rose-300 hover:border-rose-500',     badge: 'bg-rose-100 text-rose-700',       accentText: 'text-rose-600',    desc: 'Your custom design style 3' },
+};
+
+// Friendly display names for each style key
+const STYLE_DISPLAY_NAMES: Record<string, string> = {
+  minimal:  'Clean & Minimal',
+  bold:     'Bold & Dark',
+  colorful: 'Vibrant & Colorful',
+  custom:   'Your Custom Style',
+  custom_1: 'Custom Design 1',
+  custom_2: 'Custom Design 2',
+  custom_3: 'Custom Design 3',
+};
+
+// ── Skeleton card shown while a specific design is still generating ─────────
+const SkeletonCard = ({ styleKey, index }: { styleKey: string; index: number }) => {
+  const meta        = STYLE_META[styleKey] || STYLE_META.minimal;
+  const displayName = STYLE_DISPLAY_NAMES[styleKey] || styleKey;
+  const isDark = styleKey === 'bold';
+
+  return (
+    <div
+      className={`rounded-2xl border-2 ${meta.border.split(' ')[0]} bg-white shadow-md overflow-hidden`}
+      style={{ animation: `slideUp 0.5s ease-out ${index * 0.12}s both` }}
+    >
+      {/* Gradient preview area with pulse overlay */}
+      <div className={`h-52 bg-gradient-to-br ${meta.gradient} relative overflow-hidden`}>
+        {/* Animated shimmer sweep */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%)',
+            backgroundSize: '200% 100%',
+            animation: 'shimmer 1.6s ease-in-out infinite',
+          }}
+        />
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+          <div
+            className={`w-8 h-8 rounded-full border-[3px] ${isDark ? 'border-blue-400/60 border-t-blue-300' : 'border-slate-400/60 border-t-slate-600'} animate-spin`}
+          />
+          <span className={`text-xs font-semibold ${isDark ? 'text-blue-200' : 'text-slate-500'}`}>
+            Generating {displayName}…
+          </span>
+        </div>
+      </div>
+
+      {/* Placeholder info area */}
+      <div className="p-4">
+        <div className="flex items-start justify-between mb-1.5">
+          <div className="h-4 bg-slate-200 rounded-full animate-pulse w-3/5" />
+          <div className="h-4 bg-slate-100 rounded-full animate-pulse w-1/5" />
+        </div>
+        <div className="h-3 bg-slate-100 rounded-full animate-pulse w-2/5 mb-3" />
+        <div className="h-3 bg-slate-100 rounded-full animate-pulse w-3/5" />
+      </div>
+    </div>
+  );
 };
 
 const FW_COLORS: Record<string, string> = {
@@ -176,15 +237,18 @@ const PreviewModal = ({ design, onClose }: { design: Design; onClose: () => void
 };
 
 // ── Main results ──────────────────────────────────────────────────────────
-const WebsiteRedesignerResults: React.FC<Props> = ({ designs, websiteUrl, pageTitle, screenshotBase64, stats, onReset }) => {
+const WebsiteRedesignerResults: React.FC<Props> = ({ designs, websiteUrl, pageTitle, screenshotBase64, stats, onReset, isStreaming, pendingStyles = [] }) => {
   const [openDesign, setOpenDesign] = useState<Design | null>(null);
   const hostname = (() => { try { return new URL(websiteUrl).hostname; } catch { return websiteUrl; } })();
+
+  const totalCount = designs.length + pendingStyles.length;
 
   return (
     <>
       <style>{`
-        @keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes fadeIn  { from{opacity:0} to{opacity:1} }
+        @keyframes slideUp  { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes fadeIn   { from{opacity:0} to{opacity:1} }
+        @keyframes shimmer  { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
       `}</style>
 
       {openDesign && <PreviewModal design={openDesign} onClose={() => setOpenDesign(null)} />}
@@ -204,7 +268,12 @@ const WebsiteRedesignerResults: React.FC<Props> = ({ designs, websiteUrl, pageTi
               <h2 className="text-2xl font-black text-slate-900 tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>
                 {pageTitle || hostname}
               </h2>
-              <p className="text-sm text-slate-500 mt-0.5">{designs.length} redesigns generated · click any card to preview & download</p>
+              <p className="text-sm text-slate-500 mt-0.5">
+                {isStreaming
+                  ? `${designs.length} of ~${totalCount} redesigns ready — more loading…`
+                  : `${designs.length} redesign${designs.length !== 1 ? 's' : ''} generated · click any card to preview & download`
+                }
+              </p>
             </div>
           </div>
 
@@ -238,10 +307,15 @@ const WebsiteRedesignerResults: React.FC<Props> = ({ designs, websiteUrl, pageTi
           </div>
         )}
 
-        {/* Cards */}
-        <div className={`grid grid-cols-1 gap-6 ${designs.length === 4 ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'}`}>
+        {/* Cards: completed first, then skeleton cards for each pending style */}
+        <div className={`grid grid-cols-1 gap-6 ${
+          totalCount === 4 ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'
+        }`}>
           {designs.map((design, i) => (
             <DesignCard key={design.style} design={design} index={i} onOpen={() => setOpenDesign(design)} />
+          ))}
+          {pendingStyles.map((styleKey, i) => (
+            <SkeletonCard key={`skeleton-${styleKey}`} styleKey={styleKey} index={designs.length + i} />
           ))}
         </div>
 
