@@ -10,8 +10,8 @@ interface MatchDesignFormProps {
 
 const MatchDesignForm: React.FC<MatchDesignFormProps> = ({ onSubmit, onBack, isProcessing }) => {
   const [websiteUrl, setWebsiteUrl] = useState('');
-  const [figmaUrl, setFigmaUrl]     = useState('');
-  const [errors, setErrors]         = useState<{ website?: string; figma?: string }>({});
+  const [figmaUrl, setFigmaUrl] = useState('');
+  const [errors, setErrors] = useState<{ website?: string; figma?: string }>({});
 
   const validate = () => {
     const e: { website?: string; figma?: string } = {};
@@ -41,7 +41,7 @@ const MatchDesignForm: React.FC<MatchDesignFormProps> = ({ onSubmit, onBack, isP
         <div className="text-center mb-10 fade-up">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-violet-200">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
             </svg>
           </div>
           <h2 className="text-4xl font-black text-slate-900 mb-3 tracking-tight"
@@ -49,7 +49,7 @@ const MatchDesignForm: React.FC<MatchDesignFormProps> = ({ onSubmit, onBack, isP
             Match Design
           </h2>
           <p className="text-slate-500 text-base max-w-md mx-auto">
-            Paste your live website URL and Figma design link. AI will compare them and find every mismatch.
+            Paste your live website URL and Figma design link. It will compare them and find every mismatch.
           </p>
         </div>
 
@@ -118,7 +118,7 @@ const MatchDesignForm: React.FC<MatchDesignFormProps> = ({ onSubmit, onBack, isP
               {[
                 '① Screenshot your site',
                 '→ ② Fetch Figma frame',
-                '→ ③ Gemini Vision compares',
+                '→ ③ It compares',
                 '→ ④ Get mismatch report'
               ].map((step, i) => (
                 <span key={i} className="text-xs text-violet-600 font-medium">{step}</span>
@@ -147,8 +147,8 @@ const MatchDesignForm: React.FC<MatchDesignFormProps> = ({ onSubmit, onBack, isP
               {isProcessing ? (
                 <span className="flex items-center justify-center gap-2">
                   <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                   Comparing designs… this may take 30s
                 </span>
@@ -159,7 +159,7 @@ const MatchDesignForm: React.FC<MatchDesignFormProps> = ({ onSubmit, onBack, isP
           </div>
         </div>
 
-        
+
       </div>
     </>
   );

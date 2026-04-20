@@ -20,6 +20,7 @@ interface Props {
   figmaUrl: string;
   websiteScreenshot: string;
   figmaScreenshot: string;
+  diffImageBase64?: string;
   matchScore: number;
   projectedScore: number;
   onReset: () => void;
@@ -120,17 +121,19 @@ function BoxOverlays({ mismatches, activeIssue, onEnter, onLeave, onClick }: {
 const MatchDesignChat: React.FC<Props> = ({
   mismatches, websiteUrl, figmaUrl,
   websiteScreenshot, figmaScreenshot,
+  diffImageBase64,
   matchScore, projectedScore,
   onReset,
 }) => {
   const [mode, setMode]           = useState<'issues' | 'compare'>('issues');
+  const [compareTab, setCompareTab] = useState<'side' | 'diff'>('side');
   const [activeIssue, setActive]  = useState<number | null>(null);
   const [splitPct, setSplit]      = useState(50);
   const [tooltip, setTooltip]     = useState<{ x: number; y: number; text: string } | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging   = useRef(false);
-  const cardRefs     = useRef<(HTMLDivElement | null)[]>([]);
+  const cardRefs     = useRef<(HTMLElement | null)[]>([]);
 
   const critCount = mismatches.filter(m => m.severity === 'critical').length;
   const majCount  = mismatches.filter(m => m.severity === 'major').length;
@@ -162,9 +165,10 @@ const MatchDesignChat: React.FC<Props> = ({
   }, []);
   const handleBoxLeave = useCallback(() => { setActive(null); setTooltip(null); }, []);
 
-  /* image src helpers — website=jpeg, figma=png */
-  const webSrc   = websiteScreenshot ? `data:image/jpeg;base64,${websiteScreenshot}` : '';
+  /* image src helpers — website=png (now), figma=png */
+  const webSrc   = websiteScreenshot ? `data:image/png;base64,${websiteScreenshot}`  : '';
   const figmaSrc = figmaScreenshot   ? `data:image/png;base64,${figmaScreenshot}`    : '';
+  const diffSrc  = diffImageBase64   ? `data:image/png;base64,${diffImageBase64}`    : '';
 
   return (
     <>
@@ -231,7 +235,7 @@ const MatchDesignChat: React.FC<Props> = ({
                 <div className="h-1.5 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500" />
                 <div className="px-8 py-7">
                   <h2 className="text-base font-black text-slate-800 mb-1">📊 Design Match Score</h2>
-                  <p className="text-xs text-slate-400 mb-7">Visual fidelity of your live site vs Figma design</p>
+                  <p className="text-xs text-slate-400 mb-7">Pixel-accurate comparison — every differing pixel detected deterministically</p>
                   <div className="flex items-center justify-around gap-6 flex-wrap">
                     <ScoreRing score={matchScore}     label="Current Match"  sub="Before fixes" />
                     <div className="flex flex-col items-center gap-2">
@@ -246,20 +250,23 @@ const MatchDesignChat: React.FC<Props> = ({
                     <ScoreRing score={projectedScore} label="After All Fixes" sub="Projected score" />
                   </div>
                   <div className="mt-6 pt-5 border-t border-slate-100">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Score impact</p>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Issues by severity</p>
                     <div className="flex flex-wrap gap-2">
                       {[
-                        { label: 'Critical', count: critCount, color: 'bg-red-500',    pts: '-15 pts ea' },
-                        { label: 'Major',    count: majCount,  color: 'bg-orange-500', pts: '-8 pts ea'  },
-                        { label: 'Minor',    count: minCount,  color: 'bg-yellow-400', pts: '-3 pts ea'  },
-                      ].map(({ label, count, color, pts }) => (
+                        { label: 'Critical', count: critCount, color: 'bg-red-500',    note: 'Color / major visual diff' },
+                        { label: 'Major',    count: majCount,  color: 'bg-orange-500', note: 'Layout / font / content' },
+                        { label: 'Minor',    count: minCount,  color: 'bg-yellow-400', note: 'Spacing / radius / weight' },
+                      ].map(({ label, count, color, note }) => (
                         <div key={label} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
                           <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
                           <span className="text-xs font-bold text-slate-700">{count} {label}</span>
-                          <span className="text-[10px] text-slate-400">{pts}</span>
+                          <span className="text-[10px] text-slate-400">{note}</span>
                         </div>
                       ))}
                     </div>
+                    <p className="text-[10px] text-slate-400 mt-3">
+                      Score = pixel similarity % · fix all issues to reach 100%
+                    </p>
                   </div>
                 </div>
               </div>
@@ -338,7 +345,27 @@ const MatchDesignChat: React.FC<Props> = ({
 
             <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
+              {/* Sub-tab toggle: Side by Side vs Pixel Diff */}
+              <div className="flex items-center gap-2 mb-3">
+                <div className="flex bg-slate-100 rounded-xl p-1">
+                  {(['side','diff'] as const).map(t => (
+                    <button key={t} onClick={() => setCompareTab(t)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        compareTab === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}` }>
+                      {t === 'side' ? '↔ Side by Side' : '🔴 Pixel Diff'}
+                    </button>
+                  ))}
+                </div>
+                {compareTab === 'diff' && (
+                  <span className="text-xs text-slate-400 flex items-center gap-1">
+                    <span className="w-3 h-3 rounded-sm bg-red-500 inline-block" />
+                    Red = pixels that differ from Figma design
+                  </span>
+                )}
+              </div>
+
               {/* Side-by-side images */}
+              {compareTab === 'side' && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
                 <div ref={containerRef} className="flex select-none" style={{ minHeight: '480px', cursor: isDragging.current ? 'col-resize' : 'default' }}>
 
@@ -381,6 +408,28 @@ const MatchDesignChat: React.FC<Props> = ({
                 </div>
                 <p className="text-[10px] text-slate-400 text-center py-2">Drag the center divider to resize · Hover a red box to see the issue · Click to scroll to details</p>
               </div>
+              )}
+
+              {/* Pixel diff image */}
+              {compareTab === 'diff' && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200">
+                  <span className="text-xs font-bold text-slate-600">🔴 Pixel Difference Map</span>
+                  <span className="text-[10px] text-slate-400">Every red pixel = a real visual difference detected deterministically</span>
+                </div>
+                {diffSrc ? (
+                  <img src={diffSrc} alt="Pixel diff" className="w-full block" style={{ imageRendering: 'crisp-edges' }} />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-48 gap-2 text-slate-400">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <p className="text-sm">Diff image not available</p>
+                    <p className="text-xs">Re-run comparison to generate pixel diff</p>
+                  </div>
+                )}
+              </div>
+              )}
 
               {/* Compact issue list below images */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">

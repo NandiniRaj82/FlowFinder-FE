@@ -15,41 +15,42 @@ interface DashboardProps {
 }
 
 type AppStage = 'upload' | 'choice' | 'chat';
-type Feature  = 'accessibility' | 'match-design' | 'website-redesigner' | null;
+type Feature = 'accessibility' | 'match-design' | 'website-redesigner' | null;
 
 const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   const [feature, setFeature] = useState<Feature>(null);
 
   /* ── Accessibility ───────────────────────────────────────────────────── */
-  const [uploadedFiles, setUploadedFiles]             = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [accessibilityErrors, setAccessibilityErrors] = useState<any[]>([]);
-  const [isProcessing, setIsProcessing]               = useState(false);
-  const [stage, setStage]                             = useState<AppStage>('upload');
-  const [selectedChoice, setSelectedChoice]           = useState<'suggestions' | 'full-correction' | null>(null);
-  const [apiResult, setApiResult]                     = useState<any>(null);
-  const [chatSessionId, setChatSessionId]             = useState<string>('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [stage, setStage] = useState<AppStage>('upload');
+  const [selectedChoice, setSelectedChoice] = useState<'suggestions' | 'full-correction' | null>(null);
+  const [apiResult, setApiResult] = useState<any>(null);
+  const [chatSessionId, setChatSessionId] = useState<string>('');
 
   /* ── Match Design ────────────────────────────────────────────────────── */
-  const [matchStage, setMatchStage]                   = useState<'form' | 'chat'>('form');
-  const [matchProcessing, setMatchProcessing]         = useState(false);
-  const [matchMismatches, setMatchMismatches]         = useState<any[]>([]);
-  const [matchWebsiteUrl, setMatchWebsiteUrl]         = useState('');
-  const [matchFigmaUrl, setMatchFigmaUrl]             = useState('');
+  const [matchStage, setMatchStage] = useState<'form' | 'chat'>('form');
+  const [matchProcessing, setMatchProcessing] = useState(false);
+  const [matchMismatches, setMatchMismatches] = useState<any[]>([]);
+  const [matchWebsiteUrl, setMatchWebsiteUrl] = useState('');
+  const [matchFigmaUrl, setMatchFigmaUrl] = useState('');
   const [matchWebsiteScreenshot, setMatchWebsiteScreenshot] = useState('');
-  const [matchFigmaScreenshot, setMatchFigmaScreenshot]     = useState('');
-  const [matchScore, setMatchScore]                         = useState(0);
-  const [matchProjectedScore, setMatchProjectedScore]       = useState(0);
+  const [matchFigmaScreenshot, setMatchFigmaScreenshot] = useState('');
+  const [matchDiffImage, setMatchDiffImage] = useState('');
+  const [matchScore, setMatchScore] = useState(0);
+  const [matchProjectedScore, setMatchProjectedScore] = useState(0);
 
   /* ── Website Redesigner ──────────────────────────────────────────────── */
-  const [redesignerStage, setRedesignerStage]           = useState<'form' | 'results'>('form');
+  const [redesignerStage, setRedesignerStage] = useState<'form' | 'results'>('form');
   const [redesignerProcessing, setRedesignerProcessing] = useState(false);
-  const [redesignerDesigns, setRedesignerDesigns]       = useState<any[]>([]);
+  const [redesignerDesigns, setRedesignerDesigns] = useState<any[]>([]);
   const [redesignerWebsiteUrl, setRedesignerWebsiteUrl] = useState('');
-  const [redesignerPageTitle, setRedesignerPageTitle]   = useState('');
+  const [redesignerPageTitle, setRedesignerPageTitle] = useState('');
   const [redesignerScreenshot, setRedesignerScreenshot] = useState('');
-  const [redesignerStats, setRedesignerStats]           = useState<any>(null);
-  const [redesignerStatus, setRedesignerStatus]         = useState('');
+  const [redesignerStats, setRedesignerStats] = useState<any>(null);
+  const [redesignerStatus, setRedesignerStatus] = useState('');
   const [redesignerPendingStyles, setRedesignerPendingStyles] = useState<string[]>([]);
 
   /* ── Full reset ──────────────────────────────────────────────────────── */
@@ -59,7 +60,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     setSelectedChoice(null); setApiResult(null); setStage('upload');
     setMatchStage('form'); setMatchProcessing(false); setMatchMismatches([]);
     setMatchWebsiteUrl(''); setMatchFigmaUrl(''); setMatchWebsiteScreenshot(''); setMatchFigmaScreenshot('');
-    setMatchScore(0); setMatchProjectedScore(0);
+    setMatchDiffImage(''); setMatchScore(0); setMatchProjectedScore(0);
 
     setRedesignerStage('form'); setRedesignerProcessing(false); setRedesignerDesigns([]);
     setRedesignerWebsiteUrl(''); setRedesignerPageTitle(''); setRedesignerScreenshot('');
@@ -68,12 +69,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   /* ── Accessibility handlers ──────────────────────────────────────────── */
   const handleFileUpload = (files: File[], errors?: any[]) => {
-    const totalSize  = files.reduce((sum, f) => sum + f.size, 0);
-    const maxTotal   = 500 * 1024 * 1024;
+    const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+    const maxTotal = 500 * 1024 * 1024;
     const maxPerFile = 200 * 1024 * 1024;
-    if (totalSize > maxTotal) { alert(`Total too large! Max 500MB. Yours: ${(totalSize/1024/1024).toFixed(2)}MB`); return; }
+    if (totalSize > maxTotal) { alert(`Total too large! Max 500MB. Yours: ${(totalSize / 1024 / 1024).toFixed(2)}MB`); return; }
     const oversized = files.filter(f => f.size > maxPerFile);
-    if (oversized.length > 0) { alert(`Files too large (max 200MB each):\n${oversized.map(f=>`- ${f.name}`).join('\n')}`); return; }
+    if (oversized.length > 0) { alert(`Files too large (max 200MB each):\n${oversized.map(f => `- ${f.name}`).join('\n')}`); return; }
     setUploadedFiles(files);
     setAccessibilityErrors(errors || []);
     setStage('choice');
@@ -139,6 +140,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       setMatchMismatches(data.mismatches || []);
       setMatchWebsiteScreenshot(data.websiteScreenshotBase64 || data.websiteScreenshot || '');
       setMatchFigmaScreenshot(data.figmaScreenshotBase64 || data.figmaScreenshot || '');
+      setMatchDiffImage(data.diffImageBase64 || '');
       setMatchScore(data.matchScore ?? data.currentScore ?? 0);
       setMatchProjectedScore(data.projectedScore ?? 100);
       setMatchStage('chat');
@@ -151,7 +153,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const handleMatchReset = () => {
     setMatchStage('form'); setMatchMismatches([]); setMatchWebsiteUrl(''); setMatchFigmaUrl('');
     setMatchWebsiteScreenshot(''); setMatchFigmaScreenshot('');
-    setMatchScore(0); setMatchProjectedScore(0);
+    setMatchDiffImage(''); setMatchScore(0); setMatchProjectedScore(0);
   };
 
   /* ── Website Redesigner handlers ─────────────────────────────────────── */
@@ -161,17 +163,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     customPrompts: string[],
     framework?: string,
   ) => {
-    // Build the exact list of pending style keys that the backend will stream
-    const customPending = customPrompts
+    // Build the full list of style keys we expect to receive (for skeleton cards)
+    const customKeys = customPrompts
       .filter(p => p.trim().length > 5)
       .map((_, i) => `custom_${i + 1}`);
-    const initialPending = [...selectedPresets, ...customPending];
+    const allPending = [...selectedPresets, ...customKeys];
 
     setRedesignerProcessing(true);
     setRedesignerWebsiteUrl(websiteUrl);
     setRedesignerDesigns([]);
-    setRedesignerPendingStyles(initialPending);
-    setRedesignerStatus('Starting…');
+    setRedesignerPendingStyles(allPending);
+    setRedesignerStatus('Scraping site & generating redesigns…');
 
     try {
       const token = localStorage.getItem('token');
@@ -200,6 +202,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         buffer = chunks.pop() ?? '';
 
         for (const chunk of chunks) {
+          if (chunk.startsWith(': ping')) continue; // heartbeat
+
           const lines = chunk.split('\n');
           let eventName = '';
           let dataStr = '';
@@ -214,30 +218,33 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
             if (eventName === 'status') {
               setRedesignerStatus(payload.message || '');
+
             } else if (eventName === 'meta') {
               setRedesignerPageTitle(payload.pageTitle || '');
               setRedesignerScreenshot(payload.screenshotBase64 || '');
               setRedesignerStats(payload.stats || null);
+
             } else if (eventName === 'design') {
               const arrivedStyle: string = payload.design?.style || '';
               setRedesignerDesigns(prev => [...prev, payload.design]);
-              // Remove the arrived style from the pending list
+              // Remove this style from the pending (skeleton) list
               setRedesignerPendingStyles(prev => prev.filter(s => s !== arrivedStyle));
               // Switch to results page on the very first design
               if (!firstDesignReceived) {
                 firstDesignReceived = true;
                 setRedesignerStage('results');
+                setRedesignerProcessing(false); // hide full-screen overlay
               }
+
             } else if (eventName === 'done') {
-              // Clear all remaining pending styles and stop the processing indicator
               setRedesignerPendingStyles([]);
-              setRedesignerProcessing(false);
+              setRedesignerProcessing(false); // all done — isStreaming = false
               setRedesignerStatus('');
-              if (!firstDesignReceived) setRedesignerStage('results');
+
             } else if (eventName === 'error') {
               throw new Error(payload.message || 'Stream error');
             }
-          } catch (parseErr) {
+          } catch {
             // ignore malformed chunks
           }
         }
@@ -247,8 +254,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         setTimeout(() => { localStorage.clear(); window.location.href = '/signin'; }, 2000);
       }
       alert(`❌ Error: ${error.message}`);
-      setRedesignerPendingStyles([]);
+    } finally {
       setRedesignerProcessing(false);
+      setRedesignerPendingStyles([]);
     }
   };
 
@@ -259,13 +267,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   };
 
   /* ── Derived ─────────────────────────────────────────────────────────── */
-  const totalFiles      = uploadedFiles.length;
-  const totalSize       = uploadedFiles.reduce((sum, f) => sum + f.size, 0);
+  const totalFiles = uploadedFiles.length;
+  const totalSize = uploadedFiles.reduce((sum, f) => sum + f.size, 0);
   const displayFileName = totalFiles === 1 ? uploadedFiles[0]?.name : `${totalFiles} file(s)`;
 
   const isInChat =
-    (feature === 'accessibility'    && stage === 'chat') ||
-    (feature === 'match-design'     && matchStage === 'chat');
+    (feature === 'accessibility' && stage === 'chat') ||
+    (feature === 'match-design' && matchStage === 'chat');
 
   const anyProcessing = isProcessing || matchProcessing || redesignerProcessing;
 
@@ -292,19 +300,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           {anyProcessing && !(feature === 'website-redesigner' && redesignerStage === 'results') && (
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
               <div className="bg-white rounded-2xl p-8 shadow-2xl text-center max-w-md">
-                <div className={`w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4 ${
-                  feature === 'match-design' ? 'border-violet-500' :
-                  feature === 'website-redesigner' ? 'border-indigo-500' : 'border-orange-500'
-                }`} />
+                <div className={`w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4 ${feature === 'match-design' ? 'border-violet-500' :
+                    feature === 'website-redesigner' ? 'border-indigo-500' : 'border-orange-500'
+                  }`} />
                 <h3 className="text-xl font-bold text-slate-800 mb-2">
-                  {feature === 'match-design'       ? 'Comparing designs with Gemini Vision…' :
-                   feature === 'website-redesigner' ? (redesignerStatus || 'Scraping content & generating redesigns…') :
-                   `Processing ${totalFiles} file(s) with Gemini AI…`}
+                  {feature === 'match-design' ? 'Comparing designs' :
+                    feature === 'website-redesigner' ? (redesignerStatus || 'Scraping content & generating redesigns…') :
+                      `Processing ${totalFiles} file(s) with Gemini AI…`}
                 </h3>
                 <p className="text-sm text-slate-600">
-                  {feature === 'match-design'       ? 'Screenshotting site, fetching Figma, running comparison. ~30s.' :
-                   feature === 'website-redesigner' ? 'Designs appear as they finish — first card coming up soon.' :
-                   `Analyzing your code. This may take ${totalFiles > 5 ? 'a few minutes' : 'a moment'}.`}
+                  {feature === 'match-design' ? 'Screenshotting site, fetching Figma, running comparison. ~30s.' :
+                    feature === 'website-redesigner' ? 'Designs appear as they finish — first card coming up soon.' :
+                      `Analyzing your code. This may take ${totalFiles > 5 ? 'a few minutes' : 'a moment'}.`}
                 </p>
               </div>
             </div>
@@ -323,7 +330,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </div>
                 <h1 className="text-2xl font-black bg-gradient-to-r from-orange-600 to-amber-700 bg-clip-text text-transparent" style={{ fontFamily: '"Playfair Display", serif' }}>
@@ -387,7 +394,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     <div className="mb-6 p-6 bg-white/70 backdrop-blur-sm rounded-xl shadow-sm border border-orange-100">
                       <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
                         <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                         Files Ready for Processing
                       </h3>
@@ -397,7 +404,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                             <li key={idx} className="flex items-center gap-3 text-sm">
                               <span className="w-6 h-6 flex items-center justify-center bg-orange-100 text-orange-600 rounded-full text-xs font-bold">{idx + 1}</span>
                               <span className="flex-1 text-slate-700 font-medium truncate">{file.name}</span>
-                              <span className="text-xs text-slate-500">{(file.size/1024).toFixed(1)} KB</span>
+                              <span className="text-xs text-slate-500">{(file.size / 1024).toFixed(1)} KB</span>
                             </li>
                           ))}
                         </ul>
@@ -409,8 +416,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                             <ul className="mt-2 space-y-1 max-h-40 overflow-y-auto">
                               {uploadedFiles.map((file, idx) => (
                                 <li key={idx} className="text-xs text-slate-600 flex justify-between">
-                                  <span className="truncate">{idx+1}. {file.name}</span>
-                                  <span className="ml-2">{(file.size/1024).toFixed(1)} KB</span>
+                                  <span className="truncate">{idx + 1}. {file.name}</span>
+                                  <span className="ml-2">{(file.size / 1024).toFixed(1)} KB</span>
                                 </li>
                               ))}
                             </ul>
@@ -419,7 +426,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                       )}
                       <div className="mt-4 pt-4 border-t border-orange-100 flex justify-between text-xs">
                         <span className="text-slate-600">Total: <span className="font-semibold">{totalFiles} file(s)</span></span>
-                        <span className="text-slate-600">Size: <span className="font-semibold">{(totalSize/1024/1024).toFixed(2)} MB</span></span>
+                        <span className="text-slate-600">Size: <span className="font-semibold">{(totalSize / 1024 / 1024).toFixed(2)} MB</span></span>
                       </div>
                     </div>
                     <ChoiceCards fileName={displayFileName} onChoiceSelect={handleChoiceSelect} onReset={handleAccessibilityReset} isProcessing={isProcessing} />
@@ -449,6 +456,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                       figmaUrl={matchFigmaUrl}
                       websiteScreenshot={matchWebsiteScreenshot}
                       figmaScreenshot={matchFigmaScreenshot}
+                      diffImageBase64={matchDiffImage}
                       matchScore={matchScore}
                       projectedScore={matchProjectedScore}
                       onReset={handleMatchReset}

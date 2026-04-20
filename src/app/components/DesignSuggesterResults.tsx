@@ -1,6 +1,10 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+
+/* ──────────────────────────────────────────────────────────── */
+/* Types */
+/* ──────────────────────────────────────────────────────────── */
 
 interface Design {
   style: string;
@@ -9,8 +13,8 @@ interface Design {
   frameworkLabel: string;
   ext: string;
   code: string;
-  previewHtml?: string; // always HTML for iframe preview
-  html?: string;        // backward compat
+  previewHtml?: string;
+  html?: string;
 }
 
 interface Stats {
@@ -28,227 +32,99 @@ interface Props {
   screenshotBase64?: string;
   stats?: Stats;
   onReset: () => void;
-  isStreaming?: boolean;   // true while SSE is still sending designs
-  pendingStyles?: string[]; // styles still being generated (ordered)
+  isStreaming?: boolean;
+  pendingStyles?: string[];
 }
 
-const STYLE_META: Record<string, { gradient: string; border: string; badge: string; accentText: string; desc: string }> = {
-  minimal:  { gradient: 'from-slate-100 to-white',                       border: 'border-slate-300 hover:border-slate-600',   badge: 'bg-slate-100 text-slate-700',     accentText: 'text-slate-700',   desc: 'Clean, editorial, whitespace-first' },
-  bold:     { gradient: 'from-slate-900 to-slate-800',                   border: 'border-slate-700 hover:border-blue-500',    badge: 'bg-blue-500/20 text-blue-300',    accentText: 'text-blue-400',    desc: 'Dark, powerful, high contrast' },
-  colorful: { gradient: 'from-pink-500 via-purple-500 to-indigo-500',    border: 'border-purple-300 hover:border-purple-500', badge: 'bg-purple-100 text-purple-700',   accentText: 'text-purple-600',  desc: 'Vibrant, creative, gradient-rich' },
-  custom:   { gradient: 'from-amber-400 via-orange-500 to-rose-500',     border: 'border-amber-300 hover:border-amber-500',   badge: 'bg-amber-100 text-amber-700',     accentText: 'text-amber-600',   desc: 'Your custom design style' },
-  custom_1: { gradient: 'from-amber-400 via-orange-500 to-rose-500',     border: 'border-amber-300 hover:border-amber-500',   badge: 'bg-amber-100 text-amber-700',     accentText: 'text-amber-600',   desc: 'Your custom design style 1' },
-  custom_2: { gradient: 'from-emerald-400 via-teal-500 to-cyan-500',     border: 'border-emerald-300 hover:border-emerald-500', badge: 'bg-emerald-100 text-emerald-700', accentText: 'text-emerald-600', desc: 'Your custom design style 2' },
-  custom_3: { gradient: 'from-rose-400 via-red-500 to-orange-500',       border: 'border-rose-300 hover:border-rose-500',     badge: 'bg-rose-100 text-rose-700',       accentText: 'text-rose-600',    desc: 'Your custom design style 3' },
+/* ──────────────────────────────────────────────────────────── */
+/* Style Config */
+/* ──────────────────────────────────────────────────────────── */
+
+const STYLE_META: Record<string, { gradient: string; badge: string; desc: string }> = {
+  minimal: { gradient: 'from-slate-100 to-white', desc: 'Clean minimal UI', badge: 'bg-slate-100 text-slate-700' },
+  bold: { gradient: 'from-slate-900 to-slate-800', desc: 'Dark modern UI', badge: 'bg-blue-500/20 text-blue-300' },
+  colorful: { gradient: 'from-pink-500 via-purple-500 to-indigo-500', desc: 'Creative colorful UI', badge: 'bg-purple-100 text-purple-700' },
+  custom: { gradient: 'from-amber-400 via-orange-500 to-rose-500', desc: 'Custom style', badge: 'bg-amber-100 text-amber-700' },
+  custom_1: { gradient: 'from-amber-400 via-orange-500 to-rose-500', desc: 'Custom 1', badge: 'bg-amber-100 text-amber-700' },
+  custom_2: { gradient: 'from-emerald-400 via-teal-500 to-cyan-500', desc: 'Custom 2', badge: 'bg-emerald-100 text-emerald-700' },
+  custom_3: { gradient: 'from-rose-400 via-red-500 to-orange-500', desc: 'Custom 3', badge: 'bg-rose-100 text-rose-700' },
 };
 
-// Friendly display names for each style key
-const STYLE_DISPLAY_NAMES: Record<string, string> = {
-  minimal:  'Clean & Minimal',
-  bold:     'Bold & Dark',
-  colorful: 'Vibrant & Colorful',
-  custom:   'Your Custom Style',
-  custom_1: 'Custom Design 1',
-  custom_2: 'Custom Design 2',
-  custom_3: 'Custom Design 3',
-};
+const FALLBACK_META = STYLE_META.minimal;
 
-// ── Skeleton card shown while a specific design is still generating ─────────
-const SkeletonCard = ({ styleKey, index }: { styleKey: string; index: number }) => {
-  const meta        = STYLE_META[styleKey] || STYLE_META.minimal;
-  const displayName = STYLE_DISPLAY_NAMES[styleKey] || styleKey;
-  const isDark = styleKey === 'bold';
+/* ──────────────────────────────────────────────────────────── */
+/* Modal */
+/* ──────────────────────────────────────────────────────────── */
 
-  return (
-    <div
-      className={`rounded-2xl border-2 ${meta.border.split(' ')[0]} bg-white shadow-md overflow-hidden`}
-      style={{ animation: `slideUp 0.5s ease-out ${index * 0.12}s both` }}
-    >
-      {/* Gradient preview area with pulse overlay */}
-      <div className={`h-52 bg-gradient-to-br ${meta.gradient} relative overflow-hidden`}>
-        {/* Animated shimmer sweep */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%)',
-            backgroundSize: '200% 100%',
-            animation: 'shimmer 1.6s ease-in-out infinite',
-          }}
-        />
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-          <div
-            className={`w-8 h-8 rounded-full border-[3px] ${isDark ? 'border-blue-400/60 border-t-blue-300' : 'border-slate-400/60 border-t-slate-600'} animate-spin`}
-          />
-          <span className={`text-xs font-semibold ${isDark ? 'text-blue-200' : 'text-slate-500'}`}>
-            Generating {displayName}…
-          </span>
-        </div>
-      </div>
-
-      {/* Placeholder info area */}
-      <div className="p-4">
-        <div className="flex items-start justify-between mb-1.5">
-          <div className="h-4 bg-slate-200 rounded-full animate-pulse w-3/5" />
-          <div className="h-4 bg-slate-100 rounded-full animate-pulse w-1/5" />
-        </div>
-        <div className="h-3 bg-slate-100 rounded-full animate-pulse w-2/5 mb-3" />
-        <div className="h-3 bg-slate-100 rounded-full animate-pulse w-3/5" />
-      </div>
-    </div>
-  );
-};
-
-const FW_COLORS: Record<string, string> = {
-  html: 'bg-orange-100 text-orange-700',
-  react: 'bg-cyan-100 text-cyan-700',
-  nextjs: 'bg-slate-100 text-slate-700',
-  vue: 'bg-green-100 text-green-700',
-  angular: 'bg-red-100 text-red-700',
-};
-
-// ── Iframe thumbnail card ─────────────────────────────────────────────────
-const DesignCard = ({ design, index, onOpen }: { design: Design; index: number; onOpen: () => void }) => {
-  const meta    = STYLE_META[design.style] || STYLE_META.minimal;
-  const previewHtml = design.previewHtml || design.code || design.html || '';
-  const fwColor = FW_COLORS[design.framework] || 'bg-slate-100 text-slate-600';
-
-  return (
-    <div onClick={onOpen}
-      className={`group cursor-pointer rounded-2xl border-2 ${meta.border} bg-white shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden`}
-      style={{ animation: `slideUp 0.5s ease-out ${index * 0.12}s both` }}>
-
-      {/* Preview — always use HTML iframe */}
-      <div className="relative h-52 overflow-hidden bg-slate-100">
-        <iframe
-          title={design.styleName}
-          srcDoc={previewHtml}
-          sandbox="allow-scripts"
-          className="absolute top-0 left-0 border-0 pointer-events-none"
-          style={{ width: '1440px', height: '900px', transform: 'scale(0.267)', transformOrigin: 'top left' }}
-        />
-        <div className="absolute inset-0 bg-transparent group-hover:bg-black/10 transition-colors flex items-center justify-center">
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg flex items-center gap-2">
-            <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-            </svg>
-            <span className="text-sm font-bold text-slate-700">Open Preview</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-4">
-        <div className="flex items-start justify-between mb-1.5">
-          <h3 className="font-black text-slate-900 text-base" style={{ fontFamily: '"Playfair Display", serif' }}>{design.styleName}</h3>
-          <div className="flex gap-1.5 flex-shrink-0">
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${meta.badge}`}>{design.style}</span>
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${fwColor}`}>{design.frameworkLabel || 'HTML'}</span>
-          </div>
-        </div>
-        <p className="text-xs text-slate-500 mb-3">{meta.desc}</p>
-        <div className={`flex items-center gap-1 text-xs font-bold ${meta.accentText} group-hover:gap-2 transition-all`}>
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-          </svg>
-          Click to preview & download
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ── Full preview modal ────────────────────────────────────────────────────
 const PreviewModal = ({ design, onClose }: { design: Design; onClose: () => void }) => {
-  const code        = design.code || design.html || '';
-  const previewHtml = design.previewHtml || code;
   const [viewMode, setViewMode] = useState<'preview' | 'code'>('preview');
+  const code = design.code || design.html || '';
 
   const handleDownload = () => {
     const blob = new Blob([code], { type: 'text/html' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `redesign-${design.style}-${Date.now()}.html`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `design-${design.style}.html`;
+    a.click();
     URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col" style={{ animation: 'fadeIn 0.2s ease-out' }}>
+    <div className="fixed inset-0 z-50 bg-black/80 flex flex-col">
+      <div className="bg-slate-900 text-white flex justify-between items-center px-4 py-2">
+        <span>{design.styleName}</span>
 
-      {/* Modal header */}
-      <div className="flex-shrink-0 bg-slate-900 border-b border-slate-700 px-5 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-red-500"/>
-            <div className="w-3 h-3 rounded-full bg-yellow-500"/>
-            <div className="w-3 h-3 rounded-full bg-green-500"/>
-          </div>
-          <span className="text-sm font-bold text-white">{design.styleName}</span>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${FW_COLORS[design.framework] || 'bg-slate-700 text-white'}`}>
-            {design.frameworkLabel || 'HTML'}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* View toggle — always available */}
-          <div className="flex bg-slate-800 rounded-lg p-0.5">
-            <button onClick={() => setViewMode('preview')}
-              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${viewMode === 'preview' ? 'bg-white text-slate-900' : 'text-slate-400 hover:text-white'}`}>
-              Preview
-            </button>
-            <button onClick={() => setViewMode('code')}
-              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${viewMode === 'code' ? 'bg-white text-slate-900' : 'text-slate-400 hover:text-white'}`}>
-              {design.frameworkLabel || 'HTML'} Code
-            </button>
-          </div>
-
-          {/* Download */}
-          <button onClick={handleDownload}
-            className="flex items-center gap-2 px-4 py-2 bg-white text-slate-900 rounded-xl text-sm font-bold hover:bg-slate-100 transition-colors">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-            </svg>
-            Download HTML
-          </button>
-
-          {/* Close */}
-          <button onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition-colors">
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
+        <div className="flex gap-2">
+          <button onClick={() => setViewMode('preview')} className="text-xs">Preview</button>
+          <button onClick={() => setViewMode('code')} className="text-xs">Code</button>
+          <button onClick={handleDownload} className="text-xs">Download</button>
+          <button onClick={onClose}>✕</button>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-hidden">
-        {viewMode === 'preview' ? (
-          <iframe title={`${design.styleName} preview`} srcDoc={previewHtml} sandbox="allow-scripts allow-same-origin" className="w-full h-full border-0"/>
-        ) : (
-          <div className="w-full h-full overflow-auto bg-slate-950 p-4">
-            <pre className="text-xs text-green-400 whitespace-pre-wrap font-mono leading-relaxed">{code}</pre>
-          </div>
-        )}
-      </div>
+      {viewMode === 'preview' ? (
+        <iframe
+          srcDoc={design.previewHtml || code}
+          className="w-full h-full border-0"
+          sandbox="allow-scripts allow-same-origin"
+        />
+      ) : (
+        <pre className="text-green-400 bg-black p-4 overflow-auto h-full text-xs">
+          {code}
+        </pre>
+      )}
     </div>
   );
 };
 
-// ── Main results ──────────────────────────────────────────────────────────
-const WebsiteRedesignerResults: React.FC<Props> = ({ designs, websiteUrl, pageTitle, screenshotBase64, stats, onReset, isStreaming, pendingStyles = [] }) => {
-  const [openDesign, setOpenDesign] = useState<Design | null>(null);
-  const hostname = (() => { try { return new URL(websiteUrl).hostname; } catch { return websiteUrl; } })();
+/* ──────────────────────────────────────────────────────────── */
+/* Main Component */
+/* ──────────────────────────────────────────────────────────── */
 
-  const totalCount = designs.length + pendingStyles.length;
+const WebsiteRedesignerResults: React.FC<Props> = ({
+  designs,
+  websiteUrl,
+  pageTitle,
+  screenshotBase64,
+  stats,
+  onReset,
+  isStreaming,
+  pendingStyles = [],
+}) => {
+
+  const [openDesign, setOpenDesign] = useState<Design | null>(null);
+
+  const hostname = (() => {
+    try { return new URL(websiteUrl).hostname; }
+    catch { return websiteUrl; }
+  })();
 
   return (
     <>
       <style>{`
-        @keyframes slideUp  { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes fadeIn   { from{opacity:0} to{opacity:1} }
-        @keyframes shimmer  { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        @keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
       `}</style>
 
       {openDesign && <PreviewModal design={openDesign} onClose={() => setOpenDesign(null)} />}
@@ -256,72 +132,101 @@ const WebsiteRedesignerResults: React.FC<Props> = ({ designs, websiteUrl, pageTi
       <div className="max-w-6xl mx-auto px-4 py-8">
 
         {/* Header */}
-        <div className="mb-6 flex items-start justify-between flex-wrap gap-4" style={{ animation: 'slideUp 0.4s ease-out both' }}>
-          <div className="flex items-center gap-4">
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-3">
             {screenshotBase64 && (
-              <div className="w-16 h-12 rounded-xl overflow-hidden border-2 border-slate-200 flex-shrink-0 shadow-sm">
-                <img src={`data:image/jpeg;base64,${screenshotBase64}`} alt="Original" className="w-full h-full object-cover object-top"/>
-              </div>
+              <img src={`data:image/jpeg;base64,${screenshotBase64}`} className="w-16 h-12 rounded border" />
             )}
             <div>
-              <p className="text-xs text-slate-400 font-mono mb-0.5">{hostname}</p>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>
-                {pageTitle || hostname}
-              </h2>
-              <p className="text-sm text-slate-500 mt-0.5">
+              <p className="text-xs text-gray-400">{hostname}</p>
+              <h2 className="text-xl font-bold">{pageTitle || hostname}</h2>
+              <p className="text-sm text-gray-500">
                 {isStreaming
-                  ? `${designs.length} of ~${totalCount} redesigns ready — more loading…`
-                  : `${designs.length} redesign${designs.length !== 1 ? 's' : ''} generated · click any card to preview & download`
-                }
+                  ? `${designs.length} ready • ${pendingStyles.length} loading`
+                  : `${designs.length} designs generated`}
               </p>
             </div>
           </div>
 
-          <button onClick={onReset}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-all shadow-sm">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-            </svg>
-            New Redesign
+          <button onClick={onReset} className="border px-3 py-1 rounded">
+            New
           </button>
         </div>
 
-        {/* Scrape stats */}
+        {/* Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+          {/* Generated Designs */}
+          {designs.map((design, i) => {
+            const meta = STYLE_META[design.style] || FALLBACK_META;
+
+            return (
+              <div
+                key={design.style}
+                onClick={() => setOpenDesign(design)}
+                className="cursor-pointer border rounded-xl overflow-hidden shadow hover:shadow-lg transition"
+                style={{ animation: `slideUp 0.4s ${i * 0.1}s both` }}
+              >
+                <div className="h-52 bg-gray-100 relative overflow-hidden">
+                  <iframe
+                    srcDoc={design.previewHtml || design.code || ''}
+                    className="absolute top-0 left-0 border-0 pointer-events-none"
+                    style={{
+                      width: '1400px',
+                      height: '900px',
+                      transform: 'scale(0.25)',
+                      transformOrigin: 'top left'
+                    }}
+                  />
+                </div>
+
+                <div className="p-3">
+                  <h3 className="font-bold text-sm">{design.styleName}</h3>
+                  <p className="text-xs text-gray-500">{meta.desc}</p>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Skeletons */}
+          {pendingStyles.map((style, i) => {
+            const meta = STYLE_META[style] || FALLBACK_META;
+
+            return (
+              <div key={style} className="border rounded-xl overflow-hidden shadow">
+                <div className={`h-52 bg-gradient-to-br ${meta.gradient} relative`}>
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      background: 'linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.2) 50%,transparent 100%)',
+                      backgroundSize: '200% 100%',
+                      animation: 'shimmer 1.5s infinite',
+                    }}
+                  />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <div className="w-8 h-8 border-4 border-white/40 border-t-white rounded-full animate-spin" />
+                    <p className="text-white text-xs mt-2">Generating...</p>
+                  </div>
+                </div>
+
+                <div className="p-3">
+                  <div className="h-3 bg-gray-200 rounded w-2/3 animate-pulse mb-2" />
+                  <div className="h-3 bg-gray-100 rounded w-1/2 animate-pulse" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Stats */}
         {stats && (
-          <div className="mb-6 flex flex-wrap gap-2" style={{ animation: 'slideUp 0.4s ease-out 0.1s both' }}>
-            <span className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-full font-medium">
-              ✓ {stats.headings} headings scraped
-            </span>
-            <span className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-full font-medium">
-              ✓ {stats.paragraphs} paragraphs
-            </span>
-            <span className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-full font-medium">
-              ✓ {stats.listItems} list items
-            </span>
-            <span className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-full font-medium">
-              ✓ {stats.tags} tags/badges
-            </span>
-            <span className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-full font-medium">
-              ✓ {stats.sections} sections
-            </span>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <span>✓ {stats.headings} headings</span>
+            <span>✓ {stats.paragraphs} paragraphs</span>
+            <span>✓ {stats.listItems} list items</span>
           </div>
         )}
 
-        {/* Cards: completed first, then skeleton cards for each pending style */}
-        <div className={`grid grid-cols-1 gap-6 ${
-          totalCount === 4 ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'
-        }`}>
-          {designs.map((design, i) => (
-            <DesignCard key={design.style} design={design} index={i} onOpen={() => setOpenDesign(design)} />
-          ))}
-          {pendingStyles.map((styleKey, i) => (
-            <SkeletonCard key={`skeleton-${styleKey}`} styleKey={styleKey} index={designs.length + i} />
-          ))}
-        </div>
-
-        <p className="text-center text-xs text-slate-400 mt-8">
-          Click any card to open full preview • Toggle between Preview and Code view • Download as .{designs[0]?.ext || 'html'}
-        </p>
       </div>
     </>
   );
