@@ -1,53 +1,8 @@
 'use client';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 
-import React, { useState, useRef, useEffect } from 'react';
-
-/* ── Severity color map ──────────────────────────────────────────────────── */
-const SEVERITY_STYLES: Record<string, { pill: string; dot: string }> = {
-  critical: { pill: 'bg-red-100 text-red-700',      dot: 'bg-red-500'    },
-  major:    { pill: 'bg-orange-100 text-orange-700', dot: 'bg-orange-500' },
-  minor:    { pill: 'bg-yellow-100 text-yellow-700', dot: 'bg-yellow-400' },
-};
-
-const SeverityBadge = ({ severity }: { severity: string }) => {
-  const safe = (severity || 'minor').toLowerCase();
-  const s = SEVERITY_STYLES[safe] || SEVERITY_STYLES.minor;
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${s.pill}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-      {safe.charAt(0).toUpperCase() + safe.slice(1)}
-    </span>
-  );
-};
-
-const CategoryBadge = ({ category }: { category: string }) => (
-  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-violet-100 text-violet-700">
-    {category}
-  </span>
-);
-
-const BotAvatar = () => (
-  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
-    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
-    </svg>
-  </div>
-);
-
-const TypingDots = () => (
-  <div className="flex items-start gap-3">
-    <BotAvatar />
-    <div className="bg-white border border-slate-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
-      <div className="flex gap-1">
-        {[0,1,2].map(i => (
-          <span key={i} className="w-2 h-2 rounded-full bg-violet-400"
-            style={{ animation: `dotBounce 1.2s ease-in-out ${i*0.2}s infinite` }} />
-        ))}
-      </div>
-    </div>
-  </div>
-);
-
+/* ─── Types ──────────────────────────────────────────────────────────────── */
+interface BoundingBox { x: number; y: number; width: number; height: number; }
 interface Mismatch {
   issueNumber: number;
   category: string;
@@ -57,200 +12,416 @@ interface Mismatch {
   location: string;
   figmaValue: string;
   liveValue: string;
+  boundingBox?: BoundingBox;
 }
-
-interface Msg {
-  id: string | number;
-  role: 'user' | 'assistant';
-  content?: string;
-  text?: string;
-  mismatches?: Mismatch[];
-}
-
-const MismatchCard = ({ m, i }: { m: Mismatch; i: number }) => (
-  <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden"
-    style={{ animation: `slideInUp 0.35s ease-out ${i * 0.06}s both` }}>
-    <div className="p-5">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex items-center gap-2.5">
-          <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
-            {m.issueNumber}
-          </span>
-          <h3 className="font-semibold text-slate-800 text-sm leading-tight">{m.title}</h3>
-        </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <CategoryBadge category={m.category} />
-          <SeverityBadge severity={m.severity} />
-        </div>
-      </div>
-
-      {/* Location */}
-      <p className="text-xs text-violet-500 font-medium mb-2">📍 {m.location}</p>
-
-      {/* Description */}
-      <p className="text-sm text-slate-600 leading-relaxed mb-4">{m.description}</p>
-
-      {/* Figma vs Live comparison */}
-      {(m.figmaValue !== 'N/A' || m.liveValue !== 'N/A') && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-green-50 border border-green-200 rounded-xl p-3">
-            <p className="text-xs font-bold text-green-700 mb-1">🎨 Figma Design</p>
-            <p className="text-xs text-green-800 font-mono">{m.figmaValue}</p>
-          </div>
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-            <p className="text-xs font-bold text-red-700 mb-1">🌐 Live Site</p>
-            <p className="text-xs text-red-800 font-mono">{m.liveValue}</p>
-          </div>
-        </div>
-      )}
-    </div>
-  </div>
-);
-
-const ChatMessage = ({ msg }: { msg: Msg }) => {
-  if (msg.role === 'user') {
-    return (
-      <div className="flex justify-end" style={{ animation: 'slideInUp 0.3s ease-out both' }}>
-        <div className="max-w-xs bg-gradient-to-br from-violet-500 to-purple-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm">
-          <p className="text-sm leading-relaxed">{msg.content}</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-start gap-3" style={{ animation: 'slideInUp 0.3s ease-out both' }}>
-      <BotAvatar />
-      <div className="flex-1 min-w-0 space-y-3">
-        {msg.text && (
-          <div className="bg-white border border-slate-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm inline-block max-w-lg">
-            <p className="text-sm text-slate-700 leading-relaxed">{msg.text}</p>
-          </div>
-        )}
-        {msg.mismatches && (
-          <div className="space-y-3">
-            {msg.mismatches.map((m, i) => <MismatchCard key={i} m={m} i={i} />)}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
 interface Props {
   mismatches: Mismatch[];
   websiteUrl: string;
   figmaUrl: string;
+  websiteScreenshot: string;
+  figmaScreenshot: string;
+  matchScore: number;
+  projectedScore: number;
   onReset: () => void;
 }
 
-const MatchDesignChat: React.FC<Props> = ({ mismatches, websiteUrl, figmaUrl, onReset }) => {
-  const criticalCount = mismatches.filter(m => m.severity === 'critical').length;
-  const majorCount    = mismatches.filter(m => m.severity === 'major').length;
+/* ─── Severity config ────────────────────────────────────────────────────── */
+const SEV: Record<string, { bg: string; text: string; hex: string; label: string }> = {
+  critical: { bg: 'bg-red-100',    text: 'text-red-700',    hex: '#ef4444', label: 'Critical' },
+  major:    { bg: 'bg-orange-100', text: 'text-orange-700', hex: '#f97316', label: 'Major'    },
+  minor:    { bg: 'bg-yellow-100', text: 'text-yellow-700', hex: '#eab308', label: 'Minor'    },
+};
+const getSev = (s: string) => SEV[(s || 'minor').toLowerCase()] ?? SEV.minor;
 
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const didRun    = useRef(false);
+/* ─── Score helpers ──────────────────────────────────────────────────────── */
+function scoreMeta(score: number) {
+  if (score >= 80) return { cls: 'bg-emerald-100 text-emerald-700 border-emerald-300', stroke: '#22c55e', label: 'Great'      };
+  if (score >= 50) return { cls: 'bg-orange-100  text-orange-700  border-orange-300',  stroke: '#f97316', label: 'Needs Work' };
+  return               { cls: 'bg-red-100     text-red-700     border-red-300',     stroke: '#ef4444', label: 'Poor'       };
+}
 
+/* ─── Animated ring ──────────────────────────────────────────────────────── */
+function ScoreRing({ score, label, sub }: { score: number; label: string; sub: string }) {
+  const [go, setGo] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setGo(true), 150); return () => clearTimeout(t); }, []);
+  const R = 38; const C = 2 * Math.PI * R;
+  const { stroke } = scoreMeta(score);
+  const textCls = score >= 80 ? 'text-emerald-500' : score >= 50 ? 'text-orange-500' : 'text-red-500';
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="relative" style={{ width: 88, height: 88 }}>
+        <svg width="88" height="88" className="-rotate-90">
+          <circle cx="44" cy="44" r={R} fill="none" stroke="#e2e8f0" strokeWidth="7" />
+          <circle cx="44" cy="44" r={R} fill="none" stroke={stroke} strokeWidth="7"
+            strokeLinecap="round" strokeDasharray={C}
+            strokeDashoffset={go ? C * (1 - score / 100) : C}
+            style={{ transition: 'stroke-dashoffset 1.3s cubic-bezier(0.4,0,0.2,1)' }} />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className={`text-xl font-black ${textCls}`}>{score}%</span>
+        </div>
+      </div>
+      <p className="text-sm font-bold text-slate-700">{label}</p>
+      <p className="text-xs text-slate-400">{sub}</p>
+    </div>
+  );
+}
+
+/* ─── Bounding box overlays ──────────────────────────────────────────────── */
+function BoxOverlays({ mismatches, activeIssue, onEnter, onLeave, onClick }: {
+  mismatches: Mismatch[];
+  activeIssue: number | null;
+  onEnter: (n: number, title: string, cx: number, cy: number) => void;
+  onLeave: () => void;
+  onClick: (n: number) => void;
+}) {
+  return (
+    <>
+      {mismatches.map(m => {
+        if (!m.boundingBox) return null;
+        const b = m.boundingBox;
+        const isActive = activeIssue === m.issueNumber;
+        const cfg = getSev(m.severity);
+        return (
+          <div
+            key={m.issueNumber}
+            onClick={() => onClick(m.issueNumber)}
+            onMouseEnter={e => onEnter(m.issueNumber, m.title, e.clientX, e.clientY)}
+            onMouseLeave={onLeave}
+            style={{
+              position: 'absolute',
+              left: `${b.x}%`, top: `${b.y}%`,
+              width: `${b.width}%`, height: `${b.height}%`,
+              border: `2px solid ${cfg.hex}`,
+              backgroundColor: isActive ? `${cfg.hex}30` : 'rgba(239,68,68,0.12)',
+              cursor: 'pointer',
+              zIndex: isActive ? 20 : 10,
+              transition: 'all 0.15s ease',
+              boxShadow: isActive ? `0 0 0 3px ${cfg.hex}40` : 'none',
+            }}
+          >
+            <span style={{
+              position: 'absolute', top: 2, left: 2,
+              width: 16, height: 16, borderRadius: '50%',
+              backgroundColor: cfg.hex, color: '#fff',
+              fontSize: 8, fontWeight: 900,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {m.issueNumber}
+            </span>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+/* ─── Main component ─────────────────────────────────────────────────────── */
+const MatchDesignChat: React.FC<Props> = ({
+  mismatches, websiteUrl, figmaUrl,
+  websiteScreenshot, figmaScreenshot,
+  matchScore, projectedScore,
+  onReset,
+}) => {
+  const [mode, setMode]           = useState<'issues' | 'compare'>('issues');
+  const [activeIssue, setActive]  = useState<number | null>(null);
+  const [splitPct, setSplit]      = useState(50);
+  const [tooltip, setTooltip]     = useState<{ x: number; y: number; text: string } | null>(null);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isDragging   = useRef(false);
+  const cardRefs     = useRef<(HTMLDivElement | null)[]>([]);
+
+  const critCount = mismatches.filter(m => m.severity === 'critical').length;
+  const majCount  = mismatches.filter(m => m.severity === 'major').length;
+  const minCount  = mismatches.filter(m => m.severity === 'minor').length;
+  const hostname  = (() => { try { return new URL(websiteUrl).hostname; } catch { return websiteUrl; } })();
+  const sm        = scoreMeta(matchScore);
+
+  /* draggable divider */
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
-
-  useEffect(() => {
-    if (didRun.current) return;
-    didRun.current = true;
-    runFlow();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    const onMove = (e: MouseEvent) => {
+      if (!isDragging.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      setSplit(Math.max(20, Math.min(80, ((e.clientX - rect.left) / rect.width) * 100)));
+    };
+    const onUp = () => { isDragging.current = false; };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    return () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
   }, []);
 
-  const addMsg = (msg: Omit<Msg, 'id'>) =>
-    setMessages(prev => [...prev, { id: Date.now() + Math.random(), ...msg }]);
+  const scrollToCard = useCallback((n: number) => {
+    setActive(n);
+    const idx = mismatches.findIndex(m => m.issueNumber === n);
+    if (idx >= 0) cardRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [mismatches]);
 
-  const runFlow = async () => {
-    if (mismatches.length === 0) {
-      addMsg({ role: 'assistant', text: `Great news! No mismatches found between your live site and Figma design. They look identical! 🎉` });
-      return;
-    }
+  const handleBoxEnter = useCallback((n: number, title: string, cx: number, cy: number) => {
+    setActive(n); setTooltip({ x: cx, y: cy, text: title });
+  }, []);
+  const handleBoxLeave = useCallback(() => { setActive(null); setTooltip(null); }, []);
 
-    addMsg({
-      role: 'assistant',
-      text: `I've compared your live site (${new URL(websiteUrl).hostname}) against your Figma design and found ${mismatches.length} mismatch${mismatches.length !== 1 ? 'es' : ''} — ${criticalCount} critical, ${majorCount} major.`,
-    });
-
-    await new Promise(r => setTimeout(r, 400));
-    addMsg({ role: 'user', content: 'Show me the mismatches' });
-
-    await new Promise(r => setTimeout(r, 300));
-    setIsTyping(true);
-    await new Promise(r => setTimeout(r, 900 + Math.random() * 500));
-    setIsTyping(false);
-
-    addMsg({
-      role: 'assistant',
-      text: `Here are all ${mismatches.length} design mismatches with Figma vs live site values:`,
-      mismatches,
-    });
-  };
+  /* image src helpers — website=jpeg, figma=png */
+  const webSrc   = websiteScreenshot ? `data:image/jpeg;base64,${websiteScreenshot}` : '';
+  const figmaSrc = figmaScreenshot   ? `data:image/png;base64,${figmaScreenshot}`    : '';
 
   return (
     <>
       <style>{`
-        @keyframes slideInUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes dotBounce {
-          0%, 60%, 100% { transform: translateY(0); }
-          30%           { transform: translateY(-5px); }
-        }
-        .chat-scroll::-webkit-scrollbar       { width: 4px; }
-        .chat-scroll::-webkit-scrollbar-track { background: transparent; }
-        .chat-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 99px; }
+        @keyframes slideUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes fadeIn  { from{opacity:0} to{opacity:1} }
+        @keyframes popIn   { 0%{opacity:0;transform:scale(0.6)} 70%{transform:scale(1.1)} 100%{opacity:1;transform:scale(1)} }
+        .md-scroll::-webkit-scrollbar{width:5px}
+        .md-scroll::-webkit-scrollbar-track{background:transparent}
+        .md-scroll::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:99px}
+        .divider:hover .divider-bar{background:#8b5cf6}
       `}</style>
 
-      <div className="flex flex-col h-full min-h-0">
+      {/* Tooltip */}
+      {tooltip && (
+        <div className="fixed z-[999] bg-slate-900 text-white text-xs px-3 py-1.5 rounded-lg shadow-xl pointer-events-none max-w-[200px]"
+          style={{ left: tooltip.x + 12, top: tooltip.y - 8 }}>
+          {tooltip.text}
+        </div>
+      )}
 
-        {/* Sub-header */}
-        <div className="flex-shrink-0 bg-white/70 backdrop-blur-md border-b border-violet-100 px-6 py-3">
-          <div className="max-w-3xl mx-auto flex items-center justify-between">
+      <div className="flex flex-col h-full min-h-0 bg-slate-50">
+
+        {/* ── Sub-header ── */}
+        <div className="flex-shrink-0 bg-white border-b border-slate-100 px-5 py-3">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="flex items-center gap-1.5 text-xs text-slate-500 bg-white border border-slate-200 px-3 py-1.5 rounded-full shadow-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
-                {mismatches.length} mismatches · {criticalCount} critical
+              {/* Mode toggle */}
+              <div className="flex bg-slate-100 rounded-xl p-1">
+                {(['issues', 'compare'] as const).map(m => (
+                  <button key={m} onClick={() => setMode(m)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                    {m === 'issues' ? '💬 Issues' : '🔍 Compare'}
+                  </button>
+                ))}
+              </div>
+              {/* Score pill */}
+              <span className={`border text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 ${sm.cls}`}>
+                🎯 {matchScore}% match
               </span>
-              <span className="text-xs px-3 py-1.5 rounded-full font-medium border shadow-sm bg-white border-slate-200 text-slate-500 truncate max-w-xs">
-                🌐 {new URL(websiteUrl).hostname}
-              </span>
+              <span className="text-xs text-slate-400">{critCount} critical · {majCount} major · {minCount} minor</span>
             </div>
-            <button
-              onClick={onReset}
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-violet-600 transition-colors px-3 py-1.5 bg-white border border-slate-200 rounded-full hover:border-violet-300 shadow-sm"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              New Comparison
-            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 hidden md:block truncate max-w-[180px]">🌐 {hostname}</span>
+              <button onClick={onReset}
+                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-violet-600 px-3 py-1.5 bg-white border border-slate-200 rounded-full hover:border-violet-300 shadow-sm transition-colors">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                New Comparison
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto chat-scroll px-4 py-8">
-          <div className="max-w-3xl mx-auto space-y-6">
-            {messages.map(msg => <ChatMessage key={msg.id} msg={msg} />)}
-            {isTyping && <TypingDots />}
-            <div ref={bottomRef} />
-          </div>
-        </div>
+        {/* ══════════════════ ISSUES MODE ══════════════════ */}
+        {mode === 'issues' && (
+          <div className="flex-1 overflow-y-auto md-scroll">
+            <div className="max-w-4xl mx-auto px-4 py-8 space-y-7">
 
-        {/* Bottom bar */}
-        <div className="flex-shrink-0 bg-white/70 backdrop-blur-md border-t border-violet-100 px-6 py-3">
-          <div className="max-w-3xl mx-auto text-center">
-            <p className="text-xs text-slate-400">
-              {isTyping ? 'AI is analysing…' : '✓ Comparison complete — scroll up to review results'}
-            </p>
+              {/* Score card */}
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden" style={{ animation: 'fadeIn .4s both' }}>
+                <div className="h-1.5 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500" />
+                <div className="px-8 py-7">
+                  <h2 className="text-base font-black text-slate-800 mb-1">📊 Design Match Score</h2>
+                  <p className="text-xs text-slate-400 mb-7">Visual fidelity of your live site vs Figma design</p>
+                  <div className="flex items-center justify-around gap-6 flex-wrap">
+                    <ScoreRing score={matchScore}     label="Current Match"  sub="Before fixes" />
+                    <div className="flex flex-col items-center gap-2">
+                      <svg className="w-7 h-7 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                      </svg>
+                      <div className="px-3 py-1.5 rounded-full bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-black shadow-md"
+                        style={{ animation: 'popIn .6s .8s both' }}>
+                        +{projectedScore - matchScore}% gain
+                      </div>
+                    </div>
+                    <ScoreRing score={projectedScore} label="After All Fixes" sub="Projected score" />
+                  </div>
+                  <div className="mt-6 pt-5 border-t border-slate-100">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Score impact</p>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { label: 'Critical', count: critCount, color: 'bg-red-500',    pts: '-15 pts ea' },
+                        { label: 'Major',    count: majCount,  color: 'bg-orange-500', pts: '-8 pts ea'  },
+                        { label: 'Minor',    count: minCount,  color: 'bg-yellow-400', pts: '-3 pts ea'  },
+                      ].map(({ label, count, color, pts }) => (
+                        <div key={label} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                          <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
+                          <span className="text-xs font-bold text-slate-700">{count} {label}</span>
+                          <span className="text-[10px] text-slate-400">{pts}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Issues list */}
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden" style={{ animation: 'fadeIn .5s .1s both' }}>
+                <div className="h-1.5 bg-gradient-to-r from-violet-500 via-pink-500 to-rose-500" />
+                <div className="px-6 py-6">
+                  <h2 className="text-base font-black text-slate-800 mb-1 flex items-center gap-2">
+                    📋 All Issues
+                    <span className="text-sm font-bold text-violet-600 bg-violet-100 px-2.5 py-0.5 rounded-full">{mismatches.length}</span>
+                  </h2>
+                  <p className="text-xs text-slate-400 mb-5">Switch to 🔍 Compare to see issues highlighted on screenshots</p>
+                  <div className="space-y-3">
+                    {mismatches.map((m, i) => {
+                      const cfg = getSev(m.severity);
+                      return (
+                        <div key={m.issueNumber} ref={el => { cardRefs.current[i] = el; }}
+                          className="rounded-2xl border-2 border-slate-100 bg-white shadow-sm hover:shadow-md transition-all overflow-hidden"
+                          style={{ animation: `slideUp .35s ease-out ${i * .05}s both` }}>
+                          <div className="p-4">
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className="w-6 h-6 rounded-lg text-white text-[11px] font-black flex items-center justify-center flex-shrink-0"
+                                  style={{ backgroundColor: cfg.hex }}>{m.issueNumber}</span>
+                                <h3 className="font-bold text-slate-800 text-sm leading-tight">{m.title}</h3>
+                              </div>
+                              <div className="flex gap-1.5 flex-shrink-0">
+                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>
+                                <span className="text-xs font-medium px-2 py-0.5 rounded bg-violet-100 text-violet-700">{m.category}</span>
+                              </div>
+                            </div>
+                            <p className="text-[11px] text-violet-500 font-medium mb-1.5">📍 {m.location}</p>
+                            <p className="text-xs text-slate-500 leading-relaxed mb-3">{m.description}</p>
+                            {m.figmaValue && m.figmaValue !== 'N/A' && (
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                                  <p className="text-[9px] font-bold text-emerald-700 mb-0.5">🎨 Figma</p>
+                                  <p className="text-[11px] text-emerald-800 font-mono break-all">{m.figmaValue}</p>
+                                </div>
+                                <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                                  <p className="text-[9px] font-bold text-red-700 mb-0.5">🌐 Live Site</p>
+                                  <p className="text-[11px] text-red-800 font-mono break-all">{m.liveValue}</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════ COMPARE MODE ══════════════════ */}
+        {mode === 'compare' && (
+          <div className="flex-1 overflow-y-auto md-scroll">
+
+            {/* Score bar */}
+            <div className="bg-white border-b border-slate-100 px-6 py-3">
+              <div className="max-w-7xl mx-auto flex items-center justify-between flex-wrap gap-3">
+                <span className={`border text-sm font-black px-4 py-2 rounded-xl ${sm.cls}`}>
+                  Current Match: {matchScore}%
+                </span>
+                <span className="text-xs text-slate-500 font-medium">
+                  {critCount} critical · {majCount} major · {minCount} minor
+                </span>
+                <span className="border text-sm font-black px-4 py-2 rounded-xl bg-emerald-100 text-emerald-700 border-emerald-300">
+                  After Fixes: 100% ✓
+                </span>
+              </div>
+            </div>
+
+            <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+              {/* Side-by-side images */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
+                <div ref={containerRef} className="flex select-none" style={{ minHeight: '480px', cursor: isDragging.current ? 'col-resize' : 'default' }}>
+
+                  {/* Left — Live Site */}
+                  <div className="flex flex-col" style={{ width: `${splitPct}%`, minWidth: 0 }}>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border-b border-slate-200 border-r">
+                      <span className="text-xs font-bold text-slate-600">🌐 Live Site</span>
+                    </div>
+                    <div className="relative flex-1 overflow-hidden border-r border-slate-200">
+                      {webSrc
+                        ? <img src={webSrc} alt="Live Site" className="w-full h-full object-cover object-top" style={{ display: 'block' }} />
+                        : <div className="flex items-center justify-center h-64 text-slate-400 text-sm">No screenshot</div>
+                      }
+                      <BoxOverlays mismatches={mismatches} activeIssue={activeIssue}
+                        onEnter={handleBoxEnter} onLeave={handleBoxLeave} onClick={scrollToCard} />
+                    </div>
+                  </div>
+
+                  {/* Draggable divider */}
+                  <div className="divider flex-shrink-0 flex items-stretch cursor-col-resize z-30"
+                    style={{ width: '12px', background: 'transparent' }}
+                    onMouseDown={e => { isDragging.current = true; e.preventDefault(); }}>
+                    <div className="divider-bar mx-auto w-1 h-full bg-slate-300 rounded-full transition-colors" />
+                  </div>
+
+                  {/* Right — Figma Design */}
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border-b border-slate-200">
+                      <span className="text-xs font-bold text-slate-600">🎨 Figma Design</span>
+                    </div>
+                    <div className="relative flex-1 overflow-hidden">
+                      {figmaSrc
+                        ? <img src={figmaSrc} alt="Figma Design" className="w-full h-full object-cover object-top" style={{ display: 'block' }} />
+                        : <div className="flex items-center justify-center h-64 text-slate-400 text-sm">No screenshot</div>
+                      }
+                      <BoxOverlays mismatches={mismatches} activeIssue={activeIssue}
+                        onEnter={handleBoxEnter} onLeave={handleBoxLeave} onClick={scrollToCard} />
+                    </div>
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400 text-center py-2">Drag the center divider to resize · Hover a red box to see the issue · Click to scroll to details</p>
+              </div>
+
+              {/* Compact issue list below images */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
+                  <h3 className="text-sm font-black text-slate-800">Issues</h3>
+                  <span className="text-xs font-bold text-violet-600 bg-violet-100 px-2 py-0.5 rounded-full">{mismatches.length}</span>
+                </div>
+                <div className="divide-y divide-slate-50">
+                  {mismatches.map((m, i) => {
+                    const cfg = getSev(m.severity);
+                    const isActive = activeIssue === m.issueNumber;
+                    return (
+                      <button key={m.issueNumber}
+                        ref={el => { cardRefs.current[i] = el; }}
+                        onClick={() => scrollToCard(m.issueNumber)}
+                        onMouseEnter={() => setActive(m.issueNumber)}
+                        onMouseLeave={() => setActive(null)}
+                        className={`w-full text-left px-5 py-3 flex items-center gap-3 transition-all ${isActive ? 'bg-violet-50' : 'hover:bg-slate-50'}`}>
+                        <span className="w-6 h-6 rounded-lg text-white text-[11px] font-black flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: cfg.hex }}>{m.issueNumber}</span>
+                        <span className="text-sm text-slate-700 font-medium flex-1 truncate">{m.title}</span>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* Status footer */}
+        <div className="flex-shrink-0 bg-white border-t border-slate-100 px-6 py-2">
+          <div className="max-w-7xl mx-auto flex items-center justify-between text-xs text-slate-400">
+            <span>✓ {mismatches.length} issues found</span>
+            <span className="font-mono">
+              Match: <strong className={matchScore >= 80 ? 'text-emerald-500' : matchScore >= 50 ? 'text-orange-500' : 'text-red-500'}>{matchScore}%</strong>
+              {' → '}
+              Projected: <strong className="text-emerald-500">{projectedScore}%</strong>
+            </span>
           </div>
         </div>
       </div>

@@ -36,6 +36,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [matchMismatches, setMatchMismatches]         = useState<any[]>([]);
   const [matchWebsiteUrl, setMatchWebsiteUrl]         = useState('');
   const [matchFigmaUrl, setMatchFigmaUrl]             = useState('');
+  const [matchWebsiteScreenshot, setMatchWebsiteScreenshot] = useState('');
+  const [matchFigmaScreenshot, setMatchFigmaScreenshot]     = useState('');
+  const [matchScore, setMatchScore]                         = useState(0);
+  const [matchProjectedScore, setMatchProjectedScore]       = useState(0);
 
   /* ── Website Redesigner ──────────────────────────────────────────────── */
   const [redesignerStage, setRedesignerStage]           = useState<'form' | 'results'>('form');
@@ -54,7 +58,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     setUploadedFiles([]); setAccessibilityErrors([]); setIsProcessing(false);
     setSelectedChoice(null); setApiResult(null); setStage('upload');
     setMatchStage('form'); setMatchProcessing(false); setMatchMismatches([]);
-    setMatchWebsiteUrl(''); setMatchFigmaUrl('');
+    setMatchWebsiteUrl(''); setMatchFigmaUrl(''); setMatchWebsiteScreenshot(''); setMatchFigmaScreenshot('');
+    setMatchScore(0); setMatchProjectedScore(0);
 
     setRedesignerStage('form'); setRedesignerProcessing(false); setRedesignerDesigns([]);
     setRedesignerWebsiteUrl(''); setRedesignerPageTitle(''); setRedesignerScreenshot('');
@@ -132,6 +137,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       if (!response.ok) { const err = await response.json(); throw new Error(err.message || 'Comparison failed'); }
       const data = await response.json();
       setMatchMismatches(data.mismatches || []);
+      setMatchWebsiteScreenshot(data.websiteScreenshotBase64 || data.websiteScreenshot || '');
+      setMatchFigmaScreenshot(data.figmaScreenshotBase64 || data.figmaScreenshot || '');
+      setMatchScore(data.matchScore ?? data.currentScore ?? 0);
+      setMatchProjectedScore(data.projectedScore ?? 100);
       setMatchStage('chat');
     } catch (error: any) {
       if (error.message.includes('Not authenticated')) { setTimeout(() => { localStorage.clear(); window.location.href = '/signin'; }, 2000); }
@@ -141,6 +150,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   const handleMatchReset = () => {
     setMatchStage('form'); setMatchMismatches([]); setMatchWebsiteUrl(''); setMatchFigmaUrl('');
+    setMatchWebsiteScreenshot(''); setMatchFigmaScreenshot('');
+    setMatchScore(0); setMatchProjectedScore(0);
   };
 
   /* ── Website Redesigner handlers ─────────────────────────────────────── */
@@ -436,6 +447,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                       mismatches={matchMismatches}
                       websiteUrl={matchWebsiteUrl}
                       figmaUrl={matchFigmaUrl}
+                      websiteScreenshot={matchWebsiteScreenshot}
+                      figmaScreenshot={matchFigmaScreenshot}
+                      matchScore={matchScore}
+                      projectedScore={matchProjectedScore}
                       onReset={handleMatchReset}
                     />
                   </div>
