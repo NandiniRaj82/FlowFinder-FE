@@ -209,7 +209,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           let dataStr = '';
           for (const line of lines) {
             if (line.startsWith('event: ')) eventName = line.slice(7).trim();
-            if (line.startsWith('data: '))  dataStr  = line.slice(6).trim();
+            if (line.startsWith('data: ')) dataStr = line.slice(6).trim();
           }
           if (!eventName || !dataStr) continue;
 
@@ -301,7 +301,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
               <div className="bg-white rounded-2xl p-8 shadow-2xl text-center max-w-md">
                 <div className={`w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4 ${feature === 'match-design' ? 'border-violet-500' :
-                    feature === 'website-redesigner' ? 'border-indigo-500' : 'border-orange-500'
+                  feature === 'website-redesigner' ? 'border-indigo-500' : 'border-orange-500'
                   }`} />
                 <h3 className="text-xl font-bold text-slate-800 mb-2">
                   {feature === 'match-design' ? 'Comparing designs' :
@@ -460,6 +460,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                       matchScore={matchScore}
                       projectedScore={matchProjectedScore}
                       onReset={handleMatchReset}
+                      matchPercentage={matchPercentage}
+                      accuracyLabel={matchAccuracyLabel}
+                      matchScore={matchScore}
+                      projectedScore={matchProjectedScore}
+                      websiteScreenshotBase64={matchWebsiteScreenshot}
+                      figmaScreenshotBase64={matchFigmaScreenshot}
                     />
                   </div>
                 )}

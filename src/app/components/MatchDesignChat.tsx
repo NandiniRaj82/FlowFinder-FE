@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 interface BoundingBox { x: number; y: number; width: number; height: number; }
@@ -28,17 +29,17 @@ interface Props {
 
 /* ─── Severity config ────────────────────────────────────────────────────── */
 const SEV: Record<string, { bg: string; text: string; hex: string; label: string }> = {
-  critical: { bg: 'bg-red-100',    text: 'text-red-700',    hex: '#ef4444', label: 'Critical' },
-  major:    { bg: 'bg-orange-100', text: 'text-orange-700', hex: '#f97316', label: 'Major'    },
-  minor:    { bg: 'bg-yellow-100', text: 'text-yellow-700', hex: '#eab308', label: 'Minor'    },
+  critical: { bg: 'bg-red-100', text: 'text-red-700', hex: '#ef4444', label: 'Critical' },
+  major: { bg: 'bg-orange-100', text: 'text-orange-700', hex: '#f97316', label: 'Major' },
+  minor: { bg: 'bg-yellow-100', text: 'text-yellow-700', hex: '#eab308', label: 'Minor' },
 };
 const getSev = (s: string) => SEV[(s || 'minor').toLowerCase()] ?? SEV.minor;
 
 /* ─── Score helpers ──────────────────────────────────────────────────────── */
 function scoreMeta(score: number) {
-  if (score >= 80) return { cls: 'bg-emerald-100 text-emerald-700 border-emerald-300', stroke: '#22c55e', label: 'Great'      };
-  if (score >= 50) return { cls: 'bg-orange-100  text-orange-700  border-orange-300',  stroke: '#f97316', label: 'Needs Work' };
-  return               { cls: 'bg-red-100     text-red-700     border-red-300',     stroke: '#ef4444', label: 'Poor'       };
+  if (score >= 80) return { cls: 'bg-emerald-100 text-emerald-700 border-emerald-300', stroke: '#22c55e', label: 'Great' };
+  if (score >= 50) return { cls: 'bg-orange-100  text-orange-700  border-orange-300', stroke: '#f97316', label: 'Needs Work' };
+  return { cls: 'bg-red-100     text-red-700     border-red-300', stroke: '#ef4444', label: 'Poor' };
 }
 
 /* ─── Animated ring ──────────────────────────────────────────────────────── */
@@ -125,21 +126,21 @@ const MatchDesignChat: React.FC<Props> = ({
   matchScore, projectedScore,
   onReset,
 }) => {
-  const [mode, setMode]           = useState<'issues' | 'compare'>('issues');
+  const [mode, setMode] = useState<'issues' | 'compare'>('issues');
   const [compareTab, setCompareTab] = useState<'side' | 'diff'>('side');
-  const [activeIssue, setActive]  = useState<number | null>(null);
-  const [splitPct, setSplit]      = useState(50);
-  const [tooltip, setTooltip]     = useState<{ x: number; y: number; text: string } | null>(null);
+  const [activeIssue, setActive] = useState<number | null>(null);
+  const [splitPct, setSplit] = useState(50);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const isDragging   = useRef(false);
-  const cardRefs     = useRef<(HTMLElement | null)[]>([]);
+  const isDragging = useRef(false);
+  const cardRefs = useRef<(HTMLElement | null)[]>([]);
 
   const critCount = mismatches.filter(m => m.severity === 'critical').length;
-  const majCount  = mismatches.filter(m => m.severity === 'major').length;
-  const minCount  = mismatches.filter(m => m.severity === 'minor').length;
-  const hostname  = (() => { try { return new URL(websiteUrl).hostname; } catch { return websiteUrl; } })();
-  const sm        = scoreMeta(matchScore);
+  const majCount = mismatches.filter(m => m.severity === 'major').length;
+  const minCount = mismatches.filter(m => m.severity === 'minor').length;
+  const hostname = (() => { try { return new URL(websiteUrl).hostname; } catch { return websiteUrl; } })();
+  const sm = scoreMeta(matchScore);
 
   /* draggable divider */
   useEffect(() => {
@@ -166,9 +167,9 @@ const MatchDesignChat: React.FC<Props> = ({
   const handleBoxLeave = useCallback(() => { setActive(null); setTooltip(null); }, []);
 
   /* image src helpers — website=png (now), figma=png */
-  const webSrc   = websiteScreenshot ? `data:image/png;base64,${websiteScreenshot}`  : '';
-  const figmaSrc = figmaScreenshot   ? `data:image/png;base64,${figmaScreenshot}`    : '';
-  const diffSrc  = diffImageBase64   ? `data:image/png;base64,${diffImageBase64}`    : '';
+  const webSrc = websiteScreenshot ? `data:image/png;base64,${websiteScreenshot}` : '';
+  const figmaSrc = figmaScreenshot ? `data:image/png;base64,${figmaScreenshot}` : '';
+  const diffSrc = diffImageBase64 ? `data:image/png;base64,${diffImageBase64}` : '';
 
   return (
     <>
@@ -200,8 +201,7 @@ const MatchDesignChat: React.FC<Props> = ({
               <div className="flex bg-slate-100 rounded-xl p-1">
                 {(['issues', 'compare'] as const).map(m => (
                   <button key={m} onClick={() => setMode(m)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                     {m === 'issues' ? '💬 Issues' : '🔍 Compare'}
                   </button>
                 ))}
@@ -217,7 +217,7 @@ const MatchDesignChat: React.FC<Props> = ({
               <button onClick={onReset}
                 className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-violet-600 px-3 py-1.5 bg-white border border-slate-200 rounded-full hover:border-violet-300 shadow-sm transition-colors">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 New Comparison
               </button>
@@ -237,10 +237,10 @@ const MatchDesignChat: React.FC<Props> = ({
                   <h2 className="text-base font-black text-slate-800 mb-1">📊 Design Match Score</h2>
                   <p className="text-xs text-slate-400 mb-7">Pixel-accurate comparison — every differing pixel detected deterministically</p>
                   <div className="flex items-center justify-around gap-6 flex-wrap">
-                    <ScoreRing score={matchScore}     label="Current Match"  sub="Before fixes" />
+                    <ScoreRing score={matchScore} label="Current Match" sub="Before fixes" />
                     <div className="flex flex-col items-center gap-2">
                       <svg className="w-7 h-7 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                       </svg>
                       <div className="px-3 py-1.5 rounded-full bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-black shadow-md"
                         style={{ animation: 'popIn .6s .8s both' }}>
@@ -253,9 +253,9 @@ const MatchDesignChat: React.FC<Props> = ({
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Issues by severity</p>
                     <div className="flex flex-wrap gap-2">
                       {[
-                        { label: 'Critical', count: critCount, color: 'bg-red-500',    note: 'Color / major visual diff' },
-                        { label: 'Major',    count: majCount,  color: 'bg-orange-500', note: 'Layout / font / content' },
-                        { label: 'Minor',    count: minCount,  color: 'bg-yellow-400', note: 'Spacing / radius / weight' },
+                        { label: 'Critical', count: critCount, color: 'bg-red-500', note: 'Color / major visual diff' },
+                        { label: 'Major', count: majCount, color: 'bg-orange-500', note: 'Layout / font / content' },
+                        { label: 'Minor', count: minCount, color: 'bg-yellow-400', note: 'Spacing / radius / weight' },
                       ].map(({ label, count, color, note }) => (
                         <div key={label} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
                           <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
@@ -348,10 +348,9 @@ const MatchDesignChat: React.FC<Props> = ({
               {/* Sub-tab toggle: Side by Side vs Pixel Diff */}
               <div className="flex items-center gap-2 mb-3">
                 <div className="flex bg-slate-100 rounded-xl p-1">
-                  {(['side','diff'] as const).map(t => (
+                  {(['side', 'diff'] as const).map(t => (
                     <button key={t} onClick={() => setCompareTab(t)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        compareTab === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}` }>
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${compareTab === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                       {t === 'side' ? '↔ Side by Side' : '🔴 Pixel Diff'}
                     </button>
                   ))}
@@ -366,69 +365,69 @@ const MatchDesignChat: React.FC<Props> = ({
 
               {/* Side-by-side images */}
               {compareTab === 'side' && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
-                <div ref={containerRef} className="flex select-none" style={{ minHeight: '480px', cursor: isDragging.current ? 'col-resize' : 'default' }}>
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
+                  <div ref={containerRef} className="flex select-none" style={{ minHeight: '480px', cursor: isDragging.current ? 'col-resize' : 'default' }}>
 
-                  {/* Left — Live Site */}
-                  <div className="flex flex-col" style={{ width: `${splitPct}%`, minWidth: 0 }}>
-                    <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border-b border-slate-200 border-r">
-                      <span className="text-xs font-bold text-slate-600">🌐 Live Site</span>
+                    {/* Left — Live Site */}
+                    <div className="flex flex-col" style={{ width: `${splitPct}%`, minWidth: 0 }}>
+                      <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border-b border-slate-200 border-r">
+                        <span className="text-xs font-bold text-slate-600">🌐 Live Site</span>
+                      </div>
+                      <div className="relative flex-1 overflow-hidden border-r border-slate-200">
+                        {webSrc
+                          ? <img src={webSrc} alt="Live Site" className="w-full h-full object-cover object-top" style={{ display: 'block' }} />
+                          : <div className="flex items-center justify-center h-64 text-slate-400 text-sm">No screenshot</div>
+                        }
+                        <BoxOverlays mismatches={mismatches} activeIssue={activeIssue}
+                          onEnter={handleBoxEnter} onLeave={handleBoxLeave} onClick={scrollToCard} />
+                      </div>
                     </div>
-                    <div className="relative flex-1 overflow-hidden border-r border-slate-200">
-                      {webSrc
-                        ? <img src={webSrc} alt="Live Site" className="w-full h-full object-cover object-top" style={{ display: 'block' }} />
-                        : <div className="flex items-center justify-center h-64 text-slate-400 text-sm">No screenshot</div>
-                      }
-                      <BoxOverlays mismatches={mismatches} activeIssue={activeIssue}
-                        onEnter={handleBoxEnter} onLeave={handleBoxLeave} onClick={scrollToCard} />
+
+                    {/* Draggable divider */}
+                    <div className="divider flex-shrink-0 flex items-stretch cursor-col-resize z-30"
+                      style={{ width: '12px', background: 'transparent' }}
+                      onMouseDown={e => { isDragging.current = true; e.preventDefault(); }}>
+                      <div className="divider-bar mx-auto w-1 h-full bg-slate-300 rounded-full transition-colors" />
+                    </div>
+
+                    {/* Right — Figma Design */}
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border-b border-slate-200">
+                        <span className="text-xs font-bold text-slate-600">🎨 Figma Design</span>
+                      </div>
+                      <div className="relative flex-1 overflow-hidden">
+                        {figmaSrc
+                          ? <img src={figmaSrc} alt="Figma Design" className="w-full h-full object-cover object-top" style={{ display: 'block' }} />
+                          : <div className="flex items-center justify-center h-64 text-slate-400 text-sm">No screenshot</div>
+                        }
+                        <BoxOverlays mismatches={mismatches} activeIssue={activeIssue}
+                          onEnter={handleBoxEnter} onLeave={handleBoxLeave} onClick={scrollToCard} />
+                      </div>
                     </div>
                   </div>
-
-                  {/* Draggable divider */}
-                  <div className="divider flex-shrink-0 flex items-stretch cursor-col-resize z-30"
-                    style={{ width: '12px', background: 'transparent' }}
-                    onMouseDown={e => { isDragging.current = true; e.preventDefault(); }}>
-                    <div className="divider-bar mx-auto w-1 h-full bg-slate-300 rounded-full transition-colors" />
-                  </div>
-
-                  {/* Right — Figma Design */}
-                  <div className="flex flex-col flex-1 min-w-0">
-                    <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border-b border-slate-200">
-                      <span className="text-xs font-bold text-slate-600">🎨 Figma Design</span>
-                    </div>
-                    <div className="relative flex-1 overflow-hidden">
-                      {figmaSrc
-                        ? <img src={figmaSrc} alt="Figma Design" className="w-full h-full object-cover object-top" style={{ display: 'block' }} />
-                        : <div className="flex items-center justify-center h-64 text-slate-400 text-sm">No screenshot</div>
-                      }
-                      <BoxOverlays mismatches={mismatches} activeIssue={activeIssue}
-                        onEnter={handleBoxEnter} onLeave={handleBoxLeave} onClick={scrollToCard} />
-                    </div>
-                  </div>
+                  <p className="text-[10px] text-slate-400 text-center py-2">Drag the center divider to resize · Hover a red box to see the issue · Click to scroll to details</p>
                 </div>
-                <p className="text-[10px] text-slate-400 text-center py-2">Drag the center divider to resize · Hover a red box to see the issue · Click to scroll to details</p>
-              </div>
               )}
 
               {/* Pixel diff image */}
               {compareTab === 'diff' && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200">
-                  <span className="text-xs font-bold text-slate-600">🔴 Pixel Difference Map</span>
-                  <span className="text-[10px] text-slate-400">Every red pixel = a real visual difference detected deterministically</span>
-                </div>
-                {diffSrc ? (
-                  <img src={diffSrc} alt="Pixel diff" className="w-full block" style={{ imageRendering: 'crisp-edges' }} />
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-48 gap-2 text-slate-400">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                    <p className="text-sm">Diff image not available</p>
-                    <p className="text-xs">Re-run comparison to generate pixel diff</p>
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200">
+                    <span className="text-xs font-bold text-slate-600">🔴 Pixel Difference Map</span>
+                    <span className="text-[10px] text-slate-400">Every red pixel = a real visual difference detected deterministically</span>
                   </div>
-                )}
-              </div>
+                  {diffSrc ? (
+                    <img src={diffSrc} alt="Pixel diff" className="w-full block" style={{ imageRendering: 'crisp-edges' }} />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-48 gap-2 text-slate-400">
+                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <p className="text-sm">Diff image not available</p>
+                      <p className="text-xs">Re-run comparison to generate pixel diff</p>
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Compact issue list below images */}
