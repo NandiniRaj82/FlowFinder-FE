@@ -31,11 +31,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [chatSessionId, setChatSessionId]             = useState<string>('');
 
   /* ── Match Design ────────────────────────────────────────────────────── */
-  const [matchStage, setMatchStage]                   = useState<'form' | 'chat'>('form');
-  const [matchProcessing, setMatchProcessing]         = useState(false);
-  const [matchMismatches, setMatchMismatches]         = useState<any[]>([]);
-  const [matchWebsiteUrl, setMatchWebsiteUrl]         = useState('');
-  const [matchFigmaUrl, setMatchFigmaUrl]             = useState('');
+  const [matchStage, setMatchStage]                         = useState<'form' | 'chat'>('form');
+  const [matchProcessing, setMatchProcessing]               = useState(false);
+  const [matchMismatches, setMatchMismatches]               = useState<any[]>([]);
+  const [matchWebsiteUrl, setMatchWebsiteUrl]               = useState('');
+  const [matchFigmaUrl, setMatchFigmaUrl]                   = useState('');
+  const [matchPercentage, setMatchPercentage]               = useState<number>(0);
+  const [matchAccuracyLabel, setMatchAccuracyLabel]         = useState<string>('');
+  const [matchScore, setMatchScore]                         = useState<number>(0);
+  const [matchProjectedScore, setMatchProjectedScore]       = useState<number>(100);
+  const [matchWebsiteScreenshot, setMatchWebsiteScreenshot] = useState<string>('');
+  const [matchFigmaScreenshot, setMatchFigmaScreenshot]     = useState<string>('');
 
   /* ── Website Redesigner ──────────────────────────────────────────────── */
   const [redesignerStage, setRedesignerStage]           = useState<'form' | 'results'>('form');
@@ -54,7 +60,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     setUploadedFiles([]); setAccessibilityErrors([]); setIsProcessing(false);
     setSelectedChoice(null); setApiResult(null); setStage('upload');
     setMatchStage('form'); setMatchProcessing(false); setMatchMismatches([]);
-    setMatchWebsiteUrl(''); setMatchFigmaUrl('');
+    setMatchWebsiteUrl(''); setMatchFigmaUrl(''); setMatchPercentage(0); setMatchAccuracyLabel('');
+    setMatchScore(0); setMatchProjectedScore(100); setMatchWebsiteScreenshot(''); setMatchFigmaScreenshot('');
 
     setRedesignerStage('form'); setRedesignerProcessing(false); setRedesignerDesigns([]);
     setRedesignerWebsiteUrl(''); setRedesignerPageTitle(''); setRedesignerScreenshot('');
@@ -132,6 +139,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       if (!response.ok) { const err = await response.json(); throw new Error(err.message || 'Comparison failed'); }
       const data = await response.json();
       setMatchMismatches(data.mismatches || []);
+      setMatchPercentage(data.matchPercentage ?? data.matchScore ?? 0);
+      setMatchAccuracyLabel(data.accuracyLabel || '');
+      setMatchScore(data.matchScore ?? data.matchPercentage ?? 0);
+      setMatchProjectedScore(data.projectedScore ?? 100);
+      setMatchWebsiteScreenshot(data.websiteScreenshotBase64 || '');
+      setMatchFigmaScreenshot(data.figmaScreenshotBase64 || '');
       setMatchStage('chat');
     } catch (error: any) {
       if (error.message.includes('Not authenticated')) { setTimeout(() => { localStorage.clear(); window.location.href = '/signin'; }, 2000); }
@@ -141,6 +154,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   const handleMatchReset = () => {
     setMatchStage('form'); setMatchMismatches([]); setMatchWebsiteUrl(''); setMatchFigmaUrl('');
+    setMatchPercentage(0); setMatchAccuracyLabel(''); setMatchScore(0); setMatchProjectedScore(100);
+    setMatchWebsiteScreenshot(''); setMatchFigmaScreenshot('');
   };
 
   /* ── Website Redesigner handlers ─────────────────────────────────────── */
@@ -437,6 +452,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                       websiteUrl={matchWebsiteUrl}
                       figmaUrl={matchFigmaUrl}
                       onReset={handleMatchReset}
+                      matchPercentage={matchPercentage}
+                      accuracyLabel={matchAccuracyLabel}
+                      matchScore={matchScore}
+                      projectedScore={matchProjectedScore}
+                      websiteScreenshotBase64={matchWebsiteScreenshot}
+                      figmaScreenshotBase64={matchFigmaScreenshot}
                     />
                   </div>
                 )}
