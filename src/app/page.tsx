@@ -1,45 +1,37 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import SplashScreen from './components/splashScreen';
 import SignIn from './components/Signin';
 import SignUp from './components/Signup';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
   const [currentView, setCurrentView] = useState<'signin' | 'signup'>('signin');
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
+  // If already signed in, skip auth flow and go straight to dashboard
   useEffect(() => {
-    console.log('Home page mounted');
-    console.log('showSplash:', showSplash);
-  }, [showSplash]);
+    if (!loading && user) {
+      router.replace('/dashboard');
+    }
+  }, [user, loading, router]);
 
-  const handleSplashComplete = () => {
-    console.log('Splash complete callback triggered');
-    setShowSplash(false);
-  };
-
-  const switchToSignUp = () => {
-    setCurrentView('signup');
-  };
-
-  const switchToSignIn = () => {
-    setCurrentView('signin');
-  };
+  if (loading) return null; // Brief flicker prevention
 
   return (
     <>
       {showSplash ? (
-        <SplashScreen
-          onComplete={handleSplashComplete}
-          duration={4000} 
-        />
+        <SplashScreen onComplete={() => setShowSplash(false)} duration={4000} />
       ) : (
         <>
           {currentView === 'signin' ? (
-            <SignIn onSwitchToSignUp={switchToSignUp} />
+            <SignIn onSwitchToSignUp={() => setCurrentView('signup')} />
           ) : (
-            <SignUp onSwitchToSignIn={switchToSignIn} />
+            <SignUp onSwitchToSignIn={() => setCurrentView('signin')} />
           )}
         </>
       )}

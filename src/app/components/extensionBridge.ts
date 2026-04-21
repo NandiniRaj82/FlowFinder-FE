@@ -202,3 +202,27 @@ export async function clearExtensionErrors(tabId: number): Promise<void> {
     console.warn("[ExtensionBridge] Could not clear errors:", err);
   }
 }
+
+/**
+ * Push the Firebase ID token to the extension so it can sync scans to the backend.
+ * Call this right after Firebase login.
+ */
+export async function syncAuthTokenToExtension(token: string): Promise<void> {
+  try {
+    await askBackgroundViaPostMessage("storeAuthToken", { token });
+    console.log("[ExtensionBridge] Auth token synced to extension");
+  } catch (err) {
+    console.warn("[ExtensionBridge] Could not sync auth token:", err);
+  }
+}
+
+/**
+ * Clear the Firebase token from the extension on logout.
+ */
+export async function clearAuthTokenFromExtension(): Promise<void> {
+  try {
+    await askBackgroundViaPostMessage("clearAuthToken", {});
+  } catch (err) {
+    console.warn("[ExtensionBridge] Could not clear auth token:", err);
+  }
+}

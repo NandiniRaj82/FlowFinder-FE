@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { api } from '@/lib/api';
+
 
 interface Suggestion {
   errorNumber?: number;
@@ -259,13 +261,7 @@ const AccessibilityChat: React.FC<Props> = ({ errors, fileName, initialChoice, o
     setIsSending(true);
     setIsTyping(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/accessibility/chat', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, message: text }),
-      });
-      const data = await response.json();
+      const data = await api.post<any>('/api/accessibility/chat', { sessionId, message: text });
       setIsTyping(false);
       addMsg({ role: 'assistant', text: data.success ? data.reply : `❌ ${data.message}` });
     } catch {

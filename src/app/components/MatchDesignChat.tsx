@@ -1,6 +1,9 @@
 'use client';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
+import DiffViewer from './accessibility/DiffViewer';
+
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 interface BoundingBox { x: number; y: number; width: number; height: number; }
@@ -25,7 +28,10 @@ interface Props {
   matchScore: number;
   projectedScore: number;
   onReset: () => void;
+  githubConnected?: boolean;
+  onConnectGitHub?: () => void;
 }
+
 
 /* ─── Severity config ────────────────────────────────────────────────────── */
 const SEV: Record<string, { bg: string; text: string; hex: string; label: string }> = {
@@ -125,12 +131,61 @@ const MatchDesignChat: React.FC<Props> = ({
   diffImageBase64,
   matchScore, projectedScore,
   onReset,
+  githubConnected = false,
+  onConnectGitHub,
 }) => {
+  const router = useRouter();
   const [mode, setMode] = useState<'issues' | 'compare'>('issues');
   const [compareTab, setCompareTab] = useState<'side' | 'diff'>('side');
   const [activeIssue, setActive] = useState<number | null>(null);
   const [splitPct, setSplit] = useState(50);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
+
+  // Fix in Code state
+  const [showRepoSelector, setShowRepoSelector] = useState(false);
+  const [repos, setRepos] = useState<any[]>([]);
+  const [loadingRepos, setLoadingRepos] = useState(false);
+  const [repoSearch, setRepoSearch] = useState('');
+  const [selectedRepo, setSelectedRepo] = useState('');
+  const [generatingFix, setGeneratingFix] = useState(false);
+  const [fixResult, setFixResult] = useState<any>(null);
+  const [fixError, setFixError] = useState<string | null>(null);
+
+  const handleOpenFix = async () => {
+    if (!githubConnected) { onConnectGitHub?.(); return; }
+    setShowRepoSelector(true);
+    if (repos.length === 0) {
+      setLoadingRepos(true);
+      try { const d = await api.get<any>('/api/github/repos'); setRepos(d.repos || []); }
+      catch {}
+      finally { setLoadingRepos(false); }
+    }
+  };
+
+  const handleGenerateFix = async () => {
+    if (!selectedRepo) return;
+    setGeneratingFix(true);
+    setFixError(null);
+    try {
+      const result = await api.post<any>('/api/match-design/fix', {
+        mismatches,
+        websiteUrl,
+        repoFullName: selectedRepo,
+      });
+      setFixResult(result);
+      setShowRepoSelector(false);
+    } catch (err: any) {
+      setFixError(err.message);
+    } finally {
+      setGeneratingFix(false);
+    }
+  };
+
+  const filteredRepos = repos.filter(r =>
+    r.fullName?.toLowerCase().includes(repoSearch.toLowerCase()) ||
+    r.name?.toLowerCase().includes(repoSearch.toLowerCase())
+  );
+
 
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -213,6 +268,14 @@ const MatchDesignChat: React.FC<Props> = ({
               <span className="text-xs text-slate-400">{critCount} critical · {majCount} major · {minCount} minor</span>
             </div>
             <div className="flex items-center gap-2">
+              {/* Fix in Code button */}
+              <button onClick={handleOpenFix}
+                className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-full shadow-sm hover:shadow-md transition-all">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                </svg>
+                Fix in Code
+              </button>
               <span className="text-xs text-slate-400 hidden md:block truncate max-w-[180px]">🌐 {hostname}</span>
               <button onClick={onReset}
                 className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-violet-600 px-3 py-1.5 bg-white border border-slate-200 rounded-full hover:border-violet-300 shadow-sm transition-colors">
@@ -224,6 +287,7 @@ const MatchDesignChat: React.FC<Props> = ({
             </div>
           </div>
         </div>
+
 
         {/* ══════════════════ ISSUES MODE ══════════════════ */}
         {mode === 'issues' && (
@@ -473,6 +537,64 @@ const MatchDesignChat: React.FC<Props> = ({
           </div>
         </div>
       </div>
+
+      {/* ── Repo selector modal ── */}
+      {showRepoSelector && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}>
+          <div style={{ background:'#fff', borderRadius:'20px', padding:'28px', width:'100%', maxWidth:'480px', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'18px' }}>
+              <h3 style={{ fontSize:'18px', fontWeight:800, color:'#0f172a', margin:0 }}>Fix Design Issues in Code</h3>
+              <button onClick={() => setShowRepoSelector(false)} style={{ background:'none', border:'none', cursor:'pointer', color:'#94a3b8', fontSize:'20px' }}>✕</button>
+            </div>
+            <p style={{ fontSize:'13px', color:'#64748b', marginBottom:'16px', lineHeight:1.5 }}>
+              Select the GitHub repo for <strong>{websiteUrl}</strong>. FlowFinder will find your CSS/style files and generate targeted fixes.
+            </p>
+            <input
+              autoFocus
+              value={repoSearch}
+              onChange={e => setRepoSearch(e.target.value)}
+              placeholder="Search repositories..."
+              style={{ width:'100%', padding:'10px 14px', border:'2px solid #e2e8f0', borderRadius:'10px', fontSize:'13px', outline:'none', boxSizing:'border-box', marginBottom:'10px' }}
+            />
+            <div style={{ maxHeight:'220px', overflowY:'auto', border:'1.5px solid #e2e8f0', borderRadius:'10px', marginBottom:'14px' }}>
+              {loadingRepos ? (
+                <div style={{ padding:'20px', textAlign:'center', color:'#94a3b8', fontSize:'13px' }}>Loading repos...</div>
+              ) : filteredRepos.map(repo => (
+                <button key={repo.fullName} onClick={() => setSelectedRepo(repo.fullName)}
+                  style={{ width:'100%', padding:'10px 14px', background: selectedRepo === repo.fullName ? '#fff7ed' : '#fff', border:'none', borderBottom:'1px solid #f1f5f9', cursor:'pointer', textAlign:'left', display:'flex', alignItems:'center', gap:'10px' }}>
+                  <svg width="14" height="14" fill={selectedRepo === repo.fullName ? '#ea580c' : '#94a3b8'} viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+                  <div style={{ minWidth:0 }}>
+                    <p style={{ margin:'0 0 1px', fontSize:'13px', fontWeight:600, color: selectedRepo === repo.fullName ? '#ea580c' : '#0f172a', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{repo.name}</p>
+                    {repo.language && <p style={{ margin:0, fontSize:'11px', color:'#94a3b8' }}>{repo.language}</p>}
+                  </div>
+                  {selectedRepo === repo.fullName && <svg style={{ marginLeft:'auto', flexShrink:0 }} width="14" height="14" fill="none" stroke="#ea580c" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/></svg>}
+                </button>
+              ))}
+            </div>
+            {fixError && <p style={{ fontSize:'12px', color:'#b91c1c', marginBottom:'12px', padding:'8px 12px', background:'#fef2f2', borderRadius:'8px' }}>{fixError}</p>}
+            <button
+              onClick={handleGenerateFix}
+              disabled={!selectedRepo || generatingFix}
+              style={{ width:'100%', padding:'12px', background: !selectedRepo || generatingFix ? '#e2e8f0' : 'linear-gradient(135deg,#ea580c,#f59e0b)', border:'none', borderRadius:'12px', cursor: !selectedRepo || generatingFix ? 'not-allowed' : 'pointer', color: !selectedRepo || generatingFix ? '#94a3b8' : '#fff', fontSize:'14px', fontWeight:700 }}
+            >
+              {generatingFix ? '⚡ Mapping & generating fixes...' : '⚡ Generate CSS Fixes'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Fix DiffViewer ── */}
+      {fixResult && (
+        <div style={{ position:'fixed', inset:0, background:'#f8fafc', zIndex:1000, overflowY:'auto', padding:'24px' }}>
+          <DiffViewer
+            sessionId={fixResult.sessionId}
+            mappedFiles={fixResult.mappedFiles || []}
+            unmappedErrors={fixResult.unmappedErrors || []}
+            repoFullName={selectedRepo}
+            onBack={() => setFixResult(null)}
+          />
+        </div>
+      )}
     </>
   );
 };

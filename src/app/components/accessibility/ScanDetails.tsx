@@ -1,0 +1,327 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { api } from '@/lib/api';
+import DiffViewer from './DiffViewer';
+
+interface ScanDetailsProps {
+  scanId: string;
+  githubConnected: boolean;
+  githubUsername: string;
+  onConnectGitHub: () => void;
+}
+
+interface Repo { fullName: string; name: string; language: string; defaultBranch: string; updatedAt: string; }
+interface FixResult { sessionId: string; mappedFiles: any[]; unmappedErrors: any[]; totalErrors: number; fixedErrors: number; filesChanged: number; framework: string; }
+
+const impactBadge: Record<string, { bg: string; color: string }> = {
+  critical: { bg: '#fef2f2', color: '#b91c1c' },
+  serious:  { bg: '#fff7ed', color: '#c2410c' },
+  moderate: { bg: '#fefce8', color: '#a16207' },
+  minor:    { bg: '#f0fdf4', color: '#15803d' },
+};
+
+export default function ScanDetails({ scanId, githubConnected, githubUsername, onConnectGitHub }: ScanDetailsProps) {
+  const [scan, setScan] = useState<any>(null);
+  const [loadingScan, setLoadingScan] = useState(true);
+
+  // Repo selector
+  const [repos, setRepos] = useState<Repo[]>([]);
+  const [loadingRepos, setLoadingRepos] = useState(false);
+  const [repoSearch, setRepoSearch] = useState('');
+  const [selectedRepo, setSelectedRepo] = useState('');
+  const [showRepoDropdown, setShowRepoDropdown] = useState(false);
+
+  // Fix generation
+  const [generatingFixes, setGeneratingFixes] = useState(false);
+  const [fixResult, setFixResult] = useState<FixResult | null>(null);
+  const [fixError, setFixError] = useState<string | null>(null);
+  const [isCached, setIsCached] = useState(false);
+
+  // View
+  const [view, setView] = useState<'errors' | 'diff'>('errors');
+
+  useEffect(() => {
+    api.get<any>(`/api/scans/${scanId}`)
+      .then(d => { setScan(d.scan); setLoadingScan(false); })
+      .catch(() => setLoadingScan(false));
+  }, [scanId]);
+
+  useEffect(() => {
+    if (!githubConnected) return;
+    setLoadingRepos(true);
+    api.get<any>('/api/github/repos')
+      .then(d => { setRepos(d.repos || []); setLoadingRepos(false); })
+      .catch(() => setLoadingRepos(false));
+  }, [githubConnected]);
+
+  const filteredRepos = repos.filter(r =>
+    r.fullName.toLowerCase().includes(repoSearch.toLowerCase()) ||
+    r.name.toLowerCase().includes(repoSearch.toLowerCase())
+  );
+
+  const handleGenerateFixes = async (forceRefresh = false) => {
+    if (!selectedRepo) return;
+    setGeneratingFixes(true);
+    setFixError(null);
+    setFixResult(null);
+    setIsCached(false);
+    try {
+      const result = await api.post<any>('/api/fixes/generate', {
+        scanId,
+        repoFullName: selectedRepo,
+        forceRefresh,
+      });
+      setFixResult(result);
+      setIsCached(!!result.cached);
+      setView('diff');
+    } catch (err: any) {
+      setFixError(err.message);
+    } finally {
+      setGeneratingFixes(false);
+    }
+  };
+
+  if (loadingScan) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {[1, 2, 3].map(i => (
+          <div key={i} style={{ height: '80px', background: 'linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%)', borderRadius: '14px', animation: 'shimmer 1.5s infinite', backgroundSize: '200% 100%' }} />
+        ))}
+        <style>{`@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
+      </div>
+    );
+  }
+
+  if (!scan) return <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>Scan not found.</div>;
+
+  // ── DIFF VIEW ──────────────────────────────────────────────────────────────
+  if (view === 'diff' && fixResult) {
+    return (
+      <>
+        {isCached && (
+          <div style={{ marginBottom: '12px', padding: '10px 16px', background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '12px', color: '#15803d', fontWeight: 600 }}>⚡ Showing cached results — no LLM calls made</span>
+            <button
+              onClick={() => { setView('errors'); setTimeout(() => handleGenerateFixes(true), 100); }}
+              style={{ fontSize: '12px', padding: '4px 10px', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '6px', cursor: 'pointer', color: '#166534', fontWeight: 600 }}
+            >
+              🔄 Re-run fresh
+            </button>
+          </div>
+        )}
+        <DiffViewer
+          sessionId={fixResult.sessionId}
+          mappedFiles={fixResult.mappedFiles}
+          unmappedErrors={fixResult.unmappedErrors}
+          repoFullName={selectedRepo}
+          onBack={() => setView('errors')}
+        />
+      </>
+    );
+  }
+
+  // ── ERROR LIST + REPO SELECTOR ─────────────────────────────────────────────
+  return (
+    <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
+
+      {/* Left — errors */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Scan meta */}
+        <div style={{ background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: '16px', padding: '20px 24px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+            <div style={{ minWidth: 0 }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{scan.websiteUrl}</h2>
+              <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0 }}>
+                {new Date(scan.createdAt).toLocaleString()} · {scan.source} · {scan.scanType}
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', flexShrink: 0 }}>
+              {(['accessibility', 'performance', 'seo', 'bestPractices'] as const).map(k => (
+                scan.scores?.[k] != null && (
+                  <div key={k} style={{ textAlign: 'center', minWidth: '40px' }}>
+                    <div style={{ fontSize: '18px', fontWeight: 800, color: scan.scores[k] >= 90 ? '#22c55e' : scan.scores[k] >= 70 ? '#f59e0b' : '#ef4444' }}>
+                      {scan.scores[k]}
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'capitalize' }}>
+                      {k === 'bestPractices' ? 'BP' : k === 'accessibility' ? 'A11y' : k.slice(0, 4)}
+                    </div>
+                  </div>
+                )
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Error list */}
+        <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+            {scan.errors?.length || 0} Issues Found
+          </h3>
+          <div style={{ display: 'flex', gap: '8px', fontSize: '12px' }}>
+            {['critical', 'serious', 'moderate', 'minor'].map(imp => {
+              const count = scan.errors?.filter((e: any) => e.impact === imp).length;
+              if (!count) return null;
+              const style = impactBadge[imp] || { bg: '#f1f5f9', color: '#64748b' };
+              return (
+                <span key={imp} style={{ padding: '3px 10px', background: style.bg, color: style.color, borderRadius: '20px', fontWeight: 700, textTransform: 'capitalize' }}>
+                  {count} {imp}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {(!scan.errors || scan.errors.length === 0) ? (
+            <div style={{ textAlign: 'center', padding: '40px', background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: '14px' }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>✅</div>
+              <p style={{ color: '#15803d', fontWeight: 700, margin: 0 }}>No accessibility issues found!</p>
+            </div>
+          ) : scan.errors.map((err: any, i: number) => {
+            const badge = impactBadge[err.impact] || { bg: '#f1f5f9', color: '#64748b' };
+            return (
+              <div key={i} style={{ background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: '12px', padding: '14px 18px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: err.message ? '8px' : 0 }}>
+                  {err.impact && (
+                    <span style={{ padding: '2px 10px', background: badge.bg, color: badge.color, fontSize: '11px', fontWeight: 700, borderRadius: '20px', textTransform: 'capitalize', flexShrink: 0 }}>
+                      {err.impact}
+                    </span>
+                  )}
+                  <p style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b', margin: 0 }}>{err.title || err.type}</p>
+                  <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#94a3b8', fontFamily: 'JetBrains Mono, monospace', flexShrink: 0 }}>{err.source}</span>
+                </div>
+                {err.message && <p style={{ fontSize: '12px', color: '#64748b', margin: 0, lineHeight: 1.5 }}>{err.message}</p>}
+                {err.selector && (
+                  <div style={{ marginTop: '8px', padding: '6px 10px', background: '#f8fafc', borderRadius: '6px', fontSize: '11px', fontFamily: 'JetBrains Mono, monospace', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {err.selector}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Right — Fix panel */}
+      <div style={{ width: '320px', flexShrink: 0, position: 'sticky', top: '88px' }}>
+        <div style={{ background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden' }}>
+          {/* Header */}
+          <div style={{ padding: '16px 20px', background: 'linear-gradient(135deg,#ea580c,#f59e0b)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <svg width="20" height="20" fill="none" stroke="#fff" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+            <div>
+              <p style={{ margin: 0, color: '#fff', fontWeight: 700, fontSize: '14px' }}>Fix in Code</p>
+              <p style={{ margin: 0, color: 'rgba(255,255,255,0.8)', fontSize: '11px' }}>AI-powered source fix + PR</p>
+            </div>
+          </div>
+
+          <div style={{ padding: '20px' }}>
+            {!githubConnected ? (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔗</div>
+                <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '14px', lineHeight: 1.5 }}>
+                  Connect your GitHub account to map these errors to source files and raise a fix PR.
+                </p>
+                <button onClick={onConnectGitHub} style={{ width: '100%', padding: '11px', background: '#1e293b', border: 'none', borderRadius: '10px', cursor: 'pointer', color: '#fff', fontSize: '13px', fontWeight: 700 }}>
+                  Connect GitHub →
+                </button>
+              </div>
+            ) : (
+              <>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '10px' }}>Select repository</p>
+
+                {/* Repo selector */}
+                <div style={{ position: 'relative', marginBottom: '14px' }}>
+                  <button
+                    onClick={() => setShowRepoDropdown(s => !s)}
+                    style={{ width: '100%', padding: '10px 14px', background: '#f8fafc', border: '2px solid #e2e8f0', borderRadius: '10px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: selectedRepo ? '#0f172a' : '#94a3b8', fontWeight: selectedRepo ? 600 : 400, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                  >
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedRepo || 'Choose a repo...'}</span>
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
+                  </button>
+
+                  {showRepoDropdown && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', zIndex: 100, maxHeight: '260px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ padding: '8px' }}>
+                        <input
+                          autoFocus
+                          value={repoSearch}
+                          onChange={e => setRepoSearch(e.target.value)}
+                          placeholder="Search repos..."
+                          style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div style={{ overflowY: 'auto', flex: 1 }}>
+                        {loadingRepos ? (
+                          <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>Loading repos...</div>
+                        ) : filteredRepos.map(repo => (
+                          <button
+                            key={repo.fullName}
+                            onClick={() => { setSelectedRepo(repo.fullName); setShowRepoDropdown(false); setRepoSearch(''); }}
+                            style={{ width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid #f1f5f9' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                          >
+                            <svg width="14" height="14" fill="#94a3b8" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+                            <div style={{ minWidth: 0 }}>
+                              <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{repo.name}</p>
+                              {repo.language && <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8' }}>{repo.language}</p>}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Fix error */}
+                {fixError && (
+                  <div style={{ marginBottom: '12px', padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', fontSize: '12px', color: '#b91c1c' }}>
+                    {fixError}
+                  </div>
+                )}
+
+                {/* Steps */}
+                <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {[
+                    { n: '1', label: 'Select repository', done: !!selectedRepo },
+                    { n: '2', label: 'AI maps errors to source files', done: !!fixResult },
+                    { n: '3', label: 'Review diffs & raise PR', done: false },
+                  ].map(step => (
+                    <div key={step.n} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: step.done ? '#22c55e' : '#f1f5f9', border: `2px solid ${step.done ? '#22c55e' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {step.done
+                          ? <svg width="11" height="11" fill="none" stroke="#fff" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg>
+                          : <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>{step.n}</span>}
+                      </div>
+                      <span style={{ fontSize: '12px', color: step.done ? '#22c55e' : '#475569', fontWeight: step.done ? 700 : 400 }}>{step.label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => handleGenerateFixes(false)}
+                  disabled={!selectedRepo || generatingFixes || scan.errors?.length === 0}
+                  style={{ width: '100%', padding: '12px', background: !selectedRepo || generatingFixes ? '#e2e8f0' : 'linear-gradient(135deg,#ea580c,#f59e0b)', border: 'none', borderRadius: '10px', cursor: !selectedRepo || generatingFixes ? 'not-allowed' : 'pointer', color: !selectedRepo || generatingFixes ? '#94a3b8' : '#fff', fontSize: '14px', fontWeight: 700, transition: 'all 0.2s' }}
+                >
+                  {generatingFixes ? (
+                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                      <svg style={{ animation: 'spin 1s linear infinite' }} width="16" height="16" fill="none" viewBox="0 0 24 24"><circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                      Mapping & generating...
+                    </span>
+                  ) : '⚡ Generate Fixes'}
+                </button>
+
+                {generatingFixes && (
+                  <p style={{ textAlign: 'center', fontSize: '11px', color: '#94a3b8', marginTop: '8px', lineHeight: 1.4 }}>
+                    Fetching source files, mapping errors, and generating fixes with Gemini AI...
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

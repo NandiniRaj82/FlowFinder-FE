@@ -1,13 +1,23 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface FeatureSelectProps {
-  user?: { fullName: string; email: string };
+  user?: { fullName: string; email: string; photoURL?: string | null };
   onSelect: (feature: 'accessibility' | 'match-design' | 'website-redesigner') => void;
 }
 
 const FeatureSelect: React.FC<FeatureSelectProps> = ({ user, onSelect }) => {
+  const router = useRouter();
+  const { signOut } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut();
+    router.push('/signin');
+  };
+
   return (
     <>
       <style>{`
@@ -40,7 +50,7 @@ const FeatureSelect: React.FC<FeatureSelectProps> = ({ user, onSelect }) => {
               <p className="text-xs text-slate-500">{user?.email}</p>
             </div>
             <button
-              onClick={() => { localStorage.clear(); window.location.href = '/signin'; }}
+              onClick={handleLogout}
               className="px-4 py-2 bg-white border border-orange-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-orange-50 transition-all shadow-sm"
             >
               Logout
@@ -65,7 +75,7 @@ const FeatureSelect: React.FC<FeatureSelectProps> = ({ user, onSelect }) => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full fade-up" style={{ animationDelay: '0.1s' }}>
 
             {/* Fix Accessibility */}
-            <div onClick={() => onSelect('accessibility')}
+            <div onClick={() => router.push('/dashboard/accessibility')}
               className="card-lift cursor-pointer bg-white rounded-3xl border-2 border-slate-200 hover:border-orange-400 shadow-lg overflow-hidden group">
               <div className="h-2 bg-gradient-to-r from-orange-400 to-amber-500" />
               <div className="p-7">
@@ -79,10 +89,10 @@ const FeatureSelect: React.FC<FeatureSelectProps> = ({ user, onSelect }) => {
                   <span className="text-xs font-bold px-2 py-1 bg-orange-100 text-orange-600 rounded-full">WCAG</span>
                 </div>
                 <p className="text-slate-500 text-sm leading-relaxed mb-5">
-                  Upload code files, import errors from the extension, and let AI suggest or auto-fix all accessibility issues.
+                  Extension scans sync automatically. Connect GitHub, AI maps issues to source files, review diffs, and raise a PR in one click.
                 </p>
                 <ul className="space-y-1.5 mb-6">
-                  {['Import errors from extension', 'AI suggestions & fixes', 'Download corrected files'].map((f, i) => (
+                  {['Auto-sync from Chrome extension', 'AI maps errors → source files', 'Review diffs & raise GitHub PR'].map((f, i) => (
                     <li key={i} className="flex items-center gap-2 text-xs text-slate-600">
                       <span className="w-4 h-4 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center flex-shrink-0 text-[10px]">✓</span>
                       {f}
@@ -92,7 +102,7 @@ const FeatureSelect: React.FC<FeatureSelectProps> = ({ user, onSelect }) => {
                 <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                   <span className="text-xs text-slate-400 font-mono">accessibility_fixer</span>
                   <span className="flex items-center gap-1 text-xs font-bold text-orange-500 group-hover:gap-2 transition-all">
-                    Start <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
+                    Open <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
                   </span>
                 </div>
               </div>
