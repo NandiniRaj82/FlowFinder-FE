@@ -27,6 +27,11 @@ interface Props {
   diffImageBase64?: string;
   matchScore: number;
   projectedScore: number;
+  verdict?: string;
+  verdictDetail?: string;
+  sectionScores?: number[];
+  worstSection?: { sectionIndex: number; matchPct: number; label: string } | null;
+  layoutDivergence?: number;
   onReset: () => void;
   githubConnected?: boolean;
   onConnectGitHub?: () => void;
@@ -130,6 +135,8 @@ const MatchDesignChat: React.FC<Props> = ({
   websiteScreenshot, figmaScreenshot,
   diffImageBase64,
   matchScore, projectedScore,
+  verdict = 'partial', verdictDetail,
+  sectionScores = [], worstSection, layoutDivergence = 0,
   onReset,
   githubConnected = false,
   onConnectGitHub,
@@ -253,32 +260,33 @@ const MatchDesignChat: React.FC<Props> = ({
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2 flex-wrap">
               {/* Mode toggle */}
-              <div className="flex bg-slate-100 rounded-xl p-1">
+              <div className="flex bg-slate-100 rounded-lg p-0.5">
                 {(['issues', 'compare'] as const).map(m => (
                   <button key={m} onClick={() => setMode(m)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                    {m === 'issues' ? '💬 Issues' : '🔍 Compare'}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                    {m === 'issues'
+                      ? <><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>Issues</>
+                      : <><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>Compare</>}
                   </button>
                 ))}
               </div>
-              {/* Score pill */}
-              <span className={`border text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 ${sm.cls}`}>
-                🎯 {matchScore}% match
+              <span style={{ border: `1.5px solid ${matchScore >= 80 ? '#86efac' : matchScore >= 50 ? '#fdba74' : '#fca5a5'}`, color: matchScore >= 80 ? '#15803d' : matchScore >= 50 ? '#c2410c' : '#dc2626', background: matchScore >= 80 ? '#f0fdf4' : matchScore >= 50 ? '#fff7ed' : '#fef2f2', fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 99, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: matchScore >= 80 ? '#22c55e' : matchScore >= 50 ? '#f97316' : '#ef4444', flexShrink: 0 }} />
+                {matchScore}% match
               </span>
               <span className="text-xs text-slate-400">{critCount} critical · {majCount} major · {minCount} minor</span>
             </div>
             <div className="flex items-center gap-2">
-              {/* Fix in Code button */}
               <button onClick={handleOpenFix}
-                className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-full shadow-sm hover:shadow-md transition-all">
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
                 </svg>
                 Fix in Code
               </button>
-              <span className="text-xs text-slate-400 hidden md:block truncate max-w-[180px]">🌐 {hostname}</span>
+              <span className="text-xs text-slate-400 hidden md:flex items-center gap-1 truncate max-w-[200px]"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>{hostname}</span>
               <button onClick={onReset}
-                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-violet-600 px-3 py-1.5 bg-white border border-slate-200 rounded-full hover:border-violet-300 shadow-sm transition-colors">
+                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 px-3 py-1.5 bg-white border border-slate-200 rounded-lg hover:border-slate-400 shadow-sm transition-all">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
@@ -298,8 +306,33 @@ const MatchDesignChat: React.FC<Props> = ({
               <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden" style={{ animation: 'fadeIn .4s both' }}>
                 <div className="h-1.5 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500" />
                 <div className="px-8 py-7">
-                  <h2 className="text-base font-black text-slate-800 mb-1">📊 Design Match Score</h2>
-                  <p className="text-xs text-slate-400 mb-7">Pixel-accurate comparison — every differing pixel detected deterministically</p>
+                  <h2 className="text-sm font-bold text-slate-700 mb-1 flex items-center gap-2"><svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg>Design Match Score</h2>
+                  <p className="text-xs text-slate-400 mb-5">Full-page pixel-accurate comparison — every section analysed</p>
+
+                  {/* Verdict banner */}
+                  {verdictDetail && (
+                    <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-medium flex items-start gap-2.5 ${
+                      verdict === 'excellent' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                      verdict === 'good'      ? 'bg-blue-50 text-blue-800 border border-blue-200' :
+                      verdict === 'partial'   ? 'bg-amber-50 text-amber-900 border border-amber-200' :
+                      verdict === 'divergent' ? 'bg-orange-50 text-orange-900 border border-orange-200' :
+                                               'bg-red-50 text-red-900 border border-red-200'
+                    }`}>
+                      <span className="flex-shrink-0 mt-0.5">
+                        {verdict === 'excellent' || verdict === 'good'
+                          ? <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                          : verdict === 'partial'
+                          ? <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                          : <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                      </span>
+                      <div>
+                        <span className="font-bold capitalize">{verdict === 'unrelated' ? 'Completely Different Pages' : verdict === 'divergent' ? 'Structural Divergence Detected' : verdict}</span>
+                        <p className="font-normal text-xs mt-0.5 opacity-80">{verdictDetail}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Score rings */}
                   <div className="flex items-center justify-around gap-6 flex-wrap">
                     <ScoreRing score={matchScore} label="Current Match" sub="Before fixes" />
                     <div className="flex flex-col items-center gap-2">
@@ -308,12 +341,54 @@ const MatchDesignChat: React.FC<Props> = ({
                       </svg>
                       <div className="px-3 py-1.5 rounded-full bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-black shadow-md"
                         style={{ animation: 'popIn .6s .8s both' }}>
-                        +{projectedScore - matchScore}% gain
+                        {projectedScore > matchScore ? `+${projectedScore - matchScore}% gain` : 'No CSS fix potential'}
                       </div>
+                      {(verdict === 'divergent' || verdict === 'unrelated') && (
+                        <p className="text-[10px] text-slate-400 text-center max-w-[120px]">Layout restructure needed — CSS alone won't fix this</p>
+                      )}
                     </div>
-                    <ScoreRing score={projectedScore} label="After All Fixes" sub="Projected score" />
+                    <ScoreRing score={projectedScore} label={verdict === 'divergent' || verdict === 'unrelated' ? 'Max Achievable' : 'After All Fixes'} sub="Projected score" />
                   </div>
-                  <div className="mt-6 pt-5 border-t border-slate-100">
+
+                  {/* Section Heatmap — INNOVATIVE: shows per-section match % as a vertical bar chart */}
+                  {sectionScores.length > 0 && (
+                    <div className="mt-6 pt-5 border-t border-slate-100">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>Section-by-Section Breakdown</p>
+                      <div className="flex gap-1 items-end h-16" title="Each bar = 10% of page height. Red = major diff, green = close match.">
+                        {sectionScores.map((score, i) => {
+                          const color = score >= 80 ? '#22c55e' : score >= 55 ? '#f59e0b' : score >= 30 ? '#f97316' : '#ef4444';
+                          const heightPct = Math.max(8, 100 - score); // invert: taller = more different
+                          const labels = ['Top','','','Upper','','Mid','','','Lower','Footer'];
+                          return (
+                            <div key={i} className="flex-1 flex flex-col items-center gap-1" title={`Section ${i+1}: ${score}% match`}>
+                              <span className="text-[8px] text-slate-400 font-bold">{score}%</span>
+                              <div style={{ width: '100%', height: `${heightPct}%`, background: color, borderRadius: '3px 3px 0 0', minHeight: 4, transition: 'height .6s ease' }} />
+                              <span className="text-[8px] text-slate-300 truncate w-full text-center">{labels[i]}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1">Taller bar = bigger difference. Hover for exact scores.</p>
+
+                      {/* Worst section callout */}
+                      {worstSection && worstSection.matchPct < 80 && (
+                        <div className="mt-3 px-3 py-2 bg-red-50 border border-red-100 rounded-xl flex items-center gap-2">
+                          <svg width="13" height="13" fill="none" stroke="#dc2626" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                          <p className="text-xs text-red-700 font-medium">Biggest divergence: <strong>{worstSection.label}</strong> — only <strong>{worstSection.matchPct}%</strong> match</p>
+                        </div>
+                      )}
+
+                      {/* Layout divergence badge */}
+                      {layoutDivergence > 15 && (
+                        <div className="mt-2 px-3 py-2 bg-amber-50 border border-amber-100 rounded-xl flex items-center gap-2">
+                          <svg width="13" height="13" fill="none" stroke="#b45309" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>
+                          <p className="text-xs text-amber-800 font-medium">Page height difference: <strong>{layoutDivergence}%</strong> — the {layoutDivergence > 50 ? 'pages are very different lengths, bottom sections were padded for comparison' : 'design and live site have different lengths'}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="mt-5 pt-4 border-t border-slate-100">
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Issues by severity</p>
                     <div className="flex flex-wrap gap-2">
                       {[
@@ -339,11 +414,12 @@ const MatchDesignChat: React.FC<Props> = ({
               <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden" style={{ animation: 'fadeIn .5s .1s both' }}>
                 <div className="h-1.5 bg-gradient-to-r from-violet-500 via-pink-500 to-rose-500" />
                 <div className="px-6 py-6">
-                  <h2 className="text-base font-black text-slate-800 mb-1 flex items-center gap-2">
-                    📋 All Issues
-                    <span className="text-sm font-bold text-violet-600 bg-violet-100 px-2.5 py-0.5 rounded-full">{mismatches.length}</span>
+                  <h2 className="text-sm font-bold text-slate-800 mb-1 flex items-center gap-2">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                    Issues
+                    <span className="text-xs font-bold text-violet-600 bg-violet-100 px-2 py-0.5 rounded-full">{mismatches.length}</span>
                   </h2>
-                  <p className="text-xs text-slate-400 mb-5">Switch to 🔍 Compare to see issues highlighted on screenshots</p>
+                  <p className="text-xs text-slate-400 mb-5">Switch to Compare view to see issues highlighted on screenshots</p>
                   <div className="space-y-3">
                     {mismatches.map((m, i) => {
                       const cfg = getSev(m.severity);
@@ -363,17 +439,17 @@ const MatchDesignChat: React.FC<Props> = ({
                                 <span className="text-xs font-medium px-2 py-0.5 rounded bg-violet-100 text-violet-700">{m.category}</span>
                               </div>
                             </div>
-                            <p className="text-[11px] text-violet-500 font-medium mb-1.5">📍 {m.location}</p>
+                            <p className="text-[11px] text-slate-400 font-medium mb-1.5">📌 {m.location}</p>
                             <p className="text-xs text-slate-500 leading-relaxed mb-3">{m.description}</p>
                             {m.figmaValue && m.figmaValue !== 'N/A' && (
                               <div className="grid grid-cols-2 gap-2">
                                 <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-                                  <p className="text-[9px] font-bold text-emerald-700 mb-0.5">🎨 Figma</p>
+                                  <p className="text-[9px] font-bold text-emerald-700 mb-0.5 uppercase tracking-wide">Figma</p>
                                   <p className="text-[11px] text-emerald-800 font-mono break-all">{m.figmaValue}</p>
                                 </div>
-                                <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                                  <p className="text-[9px] font-bold text-red-700 mb-0.5">🌐 Live Site</p>
-                                  <p className="text-[11px] text-red-800 font-mono break-all">{m.liveValue}</p>
+                                <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                                  <p className="text-[9px] font-bold text-red-700 mb-0.5 uppercase tracking-wide">Live Site</p>
+                                  <p className="text-[11px] text-slate-700 font-mono break-all">{m.liveValue}</p>
                                 </div>
                               </div>
                             )}
@@ -393,16 +469,27 @@ const MatchDesignChat: React.FC<Props> = ({
           <div className="flex-1 overflow-y-auto md-scroll">
 
             {/* Score bar */}
-            <div className="bg-white border-b border-slate-100 px-6 py-3">
-              <div className="max-w-7xl mx-auto flex items-center justify-between flex-wrap gap-3">
-                <span className={`border text-sm font-black px-4 py-2 rounded-xl ${sm.cls}`}>
+            <div style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border)', padding: '12px 24px' }}>
+              <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                <span style={{
+                  border: `1.5px solid ${matchScore >= 80 ? 'var(--success)' : matchScore >= 50 ? 'var(--warning)' : 'var(--error)'}`,
+                  color: matchScore >= 80 ? 'var(--success)' : matchScore >= 50 ? 'var(--warning)' : 'var(--error)',
+                  background: matchScore >= 80 ? 'var(--success-bg)' : matchScore >= 50 ? 'var(--warning-bg)' : 'var(--error-bg)',
+                  fontSize: 13, fontWeight: 800, padding: '6px 14px', borderRadius: 'var(--radius)',
+                }}>
                   Current Match: {matchScore}%
                 </span>
-                <span className="text-xs text-slate-500 font-medium">
+                <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 500 }}>
                   {critCount} critical · {majCount} major · {minCount} minor
                 </span>
-                <span className="border text-sm font-black px-4 py-2 rounded-xl bg-emerald-100 text-emerald-700 border-emerald-300">
-                  After Fixes: 100% ✓
+                <span style={{
+                  border: `1.5px solid ${projectedScore >= matchScore ? 'var(--success)' : 'var(--text-muted)'}`,
+                  color: projectedScore >= matchScore ? 'var(--success)' : 'var(--text-muted)',
+                  background: projectedScore >= matchScore ? 'var(--success-bg)' : 'var(--bg-muted)',
+                  fontSize: 13, fontWeight: 800, padding: '6px 14px', borderRadius: 'var(--radius)',
+                }}>
+                  After Fixes: {projectedScore}%
+                  {verdict === 'divergent' || verdict === 'unrelated' ? ' (max achievable)' : ''}
                 </span>
               </div>
             </div>
@@ -435,7 +522,7 @@ const MatchDesignChat: React.FC<Props> = ({
                     {/* Left — Live Site */}
                     <div className="flex flex-col" style={{ width: `${splitPct}%`, minWidth: 0 }}>
                       <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border-b border-slate-200 border-r">
-                        <span className="text-xs font-bold text-slate-600">🌐 Live Site</span>
+                        <span className="text-xs font-semibold text-slate-600 flex items-center gap-1.5"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>Live Site</span>
                       </div>
                       <div className="relative flex-1 overflow-hidden border-r border-slate-200">
                         {webSrc
@@ -457,7 +544,7 @@ const MatchDesignChat: React.FC<Props> = ({
                     {/* Right — Figma Design */}
                     <div className="flex flex-col flex-1 min-w-0">
                       <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border-b border-slate-200">
-                        <span className="text-xs font-bold text-slate-600">🎨 Figma Design</span>
+                        <span className="text-xs font-semibold text-slate-600 flex items-center gap-1.5"><svg width="11" height="11" viewBox="0 0 38 57" fill="#6366f1"><path d="M19 28.5a9.5 9.5 0 1 1 19 0 9.5 9.5 0 0 1-19 0z"/><path d="M0 47.5A9.5 9.5 0 0 1 9.5 38H19v9.5a9.5 9.5 0 0 1-19 0z"/><path d="M19 0v19h9.5a9.5 9.5 0 0 0 0-19H19z"/><path d="M0 9.5A9.5 9.5 0 0 0 9.5 19H19V0H9.5A9.5 9.5 0 0 0 0 9.5z"/><path d="M0 28.5A9.5 9.5 0 0 0 9.5 38H19V19H9.5A9.5 9.5 0 0 0 0 28.5z"/></svg>Figma Design</span>
                       </div>
                       <div className="relative flex-1 overflow-hidden">
                         {figmaSrc
@@ -477,7 +564,7 @@ const MatchDesignChat: React.FC<Props> = ({
               {compareTab === 'diff' && (
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200">
-                    <span className="text-xs font-bold text-slate-600">🔴 Pixel Difference Map</span>
+                    <span className="text-xs font-semibold text-slate-600 flex items-center gap-1.5"><svg width="11" height="11" fill="none" stroke="#ef4444" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" strokeWidth={2} /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01" /></svg>Pixel Difference Map</span>
                     <span className="text-[10px] text-slate-400">Every red pixel = a real visual difference detected deterministically</span>
                   </div>
                   {diffSrc ? (
@@ -525,14 +612,14 @@ const MatchDesignChat: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Status footer */}
-        <div className="flex-shrink-0 bg-white border-t border-slate-100 px-6 py-2">
-          <div className="max-w-7xl mx-auto flex items-center justify-between text-xs text-slate-400">
-            <span>✓ {mismatches.length} issues found</span>
-            <span className="font-mono">
-              Match: <strong className={matchScore >= 80 ? 'text-emerald-500' : matchScore >= 50 ? 'text-orange-500' : 'text-red-500'}>{matchScore}%</strong>
+        <div style={{ flexShrink: 0, background: 'var(--bg-card)', borderTop: '1px solid var(--border)', padding: '8px 24px' }}>
+          <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)' }}>
+            <span>{mismatches.length} issues found</span>
+            <span style={{ fontFamily: 'var(--font-mono)' }}>
+              Match: <strong style={{ color: matchScore >= 80 ? 'var(--success)' : matchScore >= 50 ? 'var(--warning)' : 'var(--error)' }}>{matchScore}%</strong>
               {' → '}
-              Projected: <strong className="text-emerald-500">{projectedScore}%</strong>
+              Projected: <strong style={{ color: 'var(--success)' }}>{projectedScore}%</strong>
+              {(verdict === 'divergent' || verdict === 'unrelated') && <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> (layout redesign needed)</span>}
             </span>
           </div>
         </div>
@@ -577,7 +664,7 @@ const MatchDesignChat: React.FC<Props> = ({
               disabled={!selectedRepo || generatingFix}
               style={{ width:'100%', padding:'12px', background: !selectedRepo || generatingFix ? '#e2e8f0' : 'linear-gradient(135deg,#ea580c,#f59e0b)', border:'none', borderRadius:'12px', cursor: !selectedRepo || generatingFix ? 'not-allowed' : 'pointer', color: !selectedRepo || generatingFix ? '#94a3b8' : '#fff', fontSize:'14px', fontWeight:700 }}
             >
-              {generatingFix ? '⚡ Mapping & generating fixes...' : '⚡ Generate CSS Fixes'}
+              {generatingFix ? 'Analysing repository & generating fixes…' : 'Generate Fixes'}
             </button>
           </div>
         </div>

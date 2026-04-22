@@ -145,8 +145,9 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUpload }) => {
               <div>
                 {extImported ? (
                   <>
-                    <p className="font-bold text-green-800 text-sm">
-                      ✓ {extensionErrors.length} accessibility errors imported from extension
+                    <p className="font-bold text-green-800 text-sm flex items-center gap-1.5">
+                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/></svg>
+                      {extensionErrors.length} accessibility errors imported from extension
                     </p>
                     <p className="text-xs text-green-700 mt-0.5">
                       These will be used to guide the AI correction of your uploaded files.
@@ -276,7 +277,10 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUpload }) => {
                 {isDragging ? 'Drop them here!' : 'Drag & Drop Your Files'}
               </h3>
               <p className="text-slate-600 mb-2">or click to browse from your computer</p>
-              <p className="text-sm text-orange-600 font-semibold mb-6">✨ You can select multiple files at once</p>
+              <p className="text-sm text-orange-600 font-semibold mb-6 flex items-center justify-center gap-1.5">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3l14 9-14 9V3z"/></svg>
+                You can select multiple files at once
+              </p>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="px-8 py-4 bg-gradient-to-r from-orange-500 to-amber-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"

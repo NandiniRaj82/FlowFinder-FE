@@ -8,6 +8,7 @@ import AccessibilityChat from './AccessibilityChat';
 import FeatureSelect from './FeatureSelect';
 import MatchDesignForm from './MatchDesignForm';
 import MatchDesignChat from './MatchDesignChat';
+import DesignScanHistory from './DesignScanHistory';
 import WebsiteRedesignerForm from './DesignSuggesterForm';
 import WebsiteRedesignerResults from './DesignSuggesterResults';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,7 +43,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
   const [chatSessionId, setChatSessionId] = useState<string>('');
 
   /* ── Match Design ────────────────────────────────────────────────────── */
-  const [matchStage, setMatchStage] = useState<'form' | 'chat'>('form');
+  const [matchStage, setMatchStage] = useState<'form' | 'history' | 'chat'>('form');
   const [matchProcessing, setMatchProcessing] = useState(false);
   const [matchMismatches, setMatchMismatches] = useState<any[]>([]);
   const [matchWebsiteUrl, setMatchWebsiteUrl] = useState('');
@@ -52,6 +53,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
   const [matchDiffImage, setMatchDiffImage] = useState('');
   const [matchScore, setMatchScore] = useState(0);
   const [matchProjectedScore, setMatchProjectedScore] = useState(0);
+  const [matchVerdict, setMatchVerdict] = useState('');
+  const [matchVerdictDetail, setMatchVerdictDetail] = useState('');
+  const [matchSectionScores, setMatchSectionScores] = useState<number[]>([]);
+  const [matchWorstSection, setMatchWorstSection] = useState<any>(null);
+  const [matchLayoutDivergence, setMatchLayoutDivergence] = useState(0);
+  const [matchError, setMatchError] = useState<string | null>(null);
 
   /* ── Website Redesigner ──────────────────────────────────────────────── */
   const [redesignerStage, setRedesignerStage] = useState<'form' | 'results'>('form');
@@ -71,7 +78,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
     setSelectedChoice(null); setApiResult(null); setStage('upload');
     setMatchStage('form'); setMatchProcessing(false); setMatchMismatches([]);
     setMatchWebsiteUrl(''); setMatchFigmaUrl(''); setMatchWebsiteScreenshot(''); setMatchFigmaScreenshot('');
-    setMatchDiffImage(''); setMatchScore(0); setMatchProjectedScore(0);
+    setMatchDiffImage(''); setMatchScore(0); setMatchProjectedScore(0); setMatchError(null);
 
     setRedesignerStage('form'); setRedesignerProcessing(false); setRedesignerDesigns([]);
     setRedesignerWebsiteUrl(''); setRedesignerPageTitle(''); setRedesignerScreenshot('');
@@ -130,7 +137,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
 
   /* ── Match Design handlers ───────────────────────────────────────────── */
   const handleMatchSubmit = async (websiteUrl: string, figmaUrl: string) => {
-    setMatchProcessing(true); setMatchWebsiteUrl(websiteUrl); setMatchFigmaUrl(figmaUrl);
+    setMatchProcessing(true); setMatchWebsiteUrl(websiteUrl); setMatchFigmaUrl(figmaUrl); setMatchError(null);
     try {
       const data = await api.post<any>('/api/match-design', { websiteUrl, figmaUrl });
       setMatchMismatches(data.mismatches || []);
@@ -139,16 +146,47 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
       setMatchDiffImage(data.diffImageBase64 || '');
       setMatchScore(data.matchScore ?? data.currentScore ?? 0);
       setMatchProjectedScore(data.projectedScore ?? 100);
+      setMatchVerdict(data.verdict || 'partial');
+      setMatchVerdictDetail(data.verdictDetail || '');
+      setMatchSectionScores(data.sectionScores || []);
+      setMatchWorstSection(data.worstSection || null);
+      setMatchLayoutDivergence(data.layoutDivergence || 0);
       setMatchStage('chat');
     } catch (error: any) {
-      alert(`❌ Error: ${error.message}`);
+      setMatchError(error.message || 'Comparison failed. Please try again.');
     } finally { setMatchProcessing(false); }
   };
 
   const handleMatchReset = () => {
     setMatchStage('form'); setMatchMismatches([]); setMatchWebsiteUrl(''); setMatchFigmaUrl('');
     setMatchWebsiteScreenshot(''); setMatchFigmaScreenshot('');
-    setMatchDiffImage(''); setMatchScore(0); setMatchProjectedScore(0);
+    setMatchDiffImage(''); setMatchScore(0); setMatchProjectedScore(0); setMatchError(null);
+  };
+
+  const handleMatchShowHistory = () => setMatchStage('history');
+
+  // Load a previously saved scan from DB without re-running comparison
+  const handleLoadScanFromHistory = async (scanId: string) => {
+    try {
+      const data = await api.get<any>(`/api/match-design/${scanId}`);
+      const scan = data.scan;
+      setMatchWebsiteUrl(scan.websiteUrl || '');
+      setMatchFigmaUrl(scan.figmaUrl || '');
+      setMatchMismatches(scan.mismatches || []);
+      setMatchWebsiteScreenshot(scan.websiteScreenshotBase64 || '');
+      setMatchFigmaScreenshot(scan.figmaScreenshotBase64 || '');
+      setMatchDiffImage(scan.diffImageBase64 || '');
+      setMatchScore(scan.matchScore ?? 0);
+      setMatchProjectedScore(scan.projectedScore ?? 0);
+      setMatchVerdict(scan.verdict || 'partial');
+      setMatchVerdictDetail(scan.verdictDetail || '');
+      setMatchSectionScores(scan.sectionScores || []);
+      setMatchWorstSection(scan.worstSection || null);
+      setMatchLayoutDivergence(scan.layoutDivergence || 0);
+      setMatchStage('chat');
+    } catch (err: any) {
+      alert(`Could not load scan: ${err.message}`);
+    }
   };
 
   /* ── Website Redesigner handlers ─────────────────────────────────────── */
@@ -284,22 +322,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
       {feature !== null && (
         <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 relative overflow-hidden flex flex-col">
 
-          {/* Loading overlay — for redesigner, only show while still on the form stage */}
-          {anyProcessing && !(feature === 'website-redesigner' && redesignerStage === 'results') && (
+          {/* Loading overlay — only for accessibility and redesigner (NOT match-design — it handles its own pipeline animation) */}
+          {anyProcessing && !(feature === 'match-design') && !(feature === 'website-redesigner' && redesignerStage === 'results') && (
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
               <div className="bg-white rounded-2xl p-8 shadow-2xl text-center max-w-md">
-                <div className={`w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4 ${feature === 'match-design' ? 'border-violet-500' :
-                  feature === 'website-redesigner' ? 'border-indigo-500' : 'border-orange-500'
+                <div className={`w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4 ${feature === 'website-redesigner' ? 'border-indigo-500' : 'border-orange-500'
                   }`} />
                 <h3 className="text-xl font-bold text-slate-800 mb-2">
-                  {feature === 'match-design' ? 'Comparing designs' :
-                    feature === 'website-redesigner' ? (redesignerStatus || 'Scraping content & generating redesigns…') :
-                      `Processing ${totalFiles} file(s) with Gemini AI…`}
+                  {feature === 'website-redesigner' ? (redesignerStatus || 'Scraping content & generating redesigns…') :
+                    `Processing ${totalFiles} file(s) with Gemini AI…`}
                 </h3>
                 <p className="text-sm text-slate-600">
-                  {feature === 'match-design' ? 'Screenshotting site, fetching Figma, running comparison. ~30s.' :
-                    feature === 'website-redesigner' ? 'Designs appear as they finish — first card coming up soon.' :
-                      `Analyzing your code. This may take ${totalFiles > 5 ? 'a few minutes' : 'a moment'}.`}
+                  {feature === 'website-redesigner' ? 'Designs appear as they finish — first card coming up soon.' :
+                    `Analyzing your code. This may take ${totalFiles > 5 ? 'a few minutes' : 'a moment'}.`}
                 </p>
               </div>
             </div>
@@ -340,6 +375,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
                 {feature === 'match-design' && (
                   <div className="hidden md:flex items-center gap-2 text-xs text-slate-500">
                     <span className={matchStage === 'form' ? 'text-violet-600 font-semibold' : 'text-slate-400'}>URLs</span>
+                    <span>›</span>
+                    <span className={matchStage === 'history' ? 'text-violet-600 font-semibold' : 'text-slate-400'}>History</span>
                     <span>›</span>
                     <span className={matchStage === 'chat' ? 'text-violet-600 font-semibold' : 'text-slate-400'}>Results</span>
                   </div>
@@ -457,8 +494,25 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
             {feature === 'match-design' && (
               <>
                 {matchStage === 'form' && (
-                  <div className="animate-slide-up">
-                    <MatchDesignForm onSubmit={handleMatchSubmit} onBack={handleFullReset} isProcessing={matchProcessing} />
+                  <div style={{ height: '100%', overflow: 'auto' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 24px 0', gap: 8 }}>
+                      <button
+                        onClick={handleMatchShowHistory}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#475569', fontFamily: 'inherit' }}
+                      >
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        View History
+                      </button>
+                    </div>
+                    <MatchDesignForm onSubmit={handleMatchSubmit} onBack={handleFullReset} isProcessing={matchProcessing} error={matchError} />
+                  </div>
+                )}
+                {matchStage === 'history' && (
+                  <div style={{ height: '100%', overflow: 'auto', padding: '24px', maxWidth: 640, margin: '0 auto' }}>
+                    <DesignScanHistory
+                      onLoadScan={handleLoadScanFromHistory}
+                      onNewScan={() => setMatchStage('form')}
+                    />
                   </div>
                 )}
                 {matchStage === 'chat' && (
@@ -472,6 +526,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
                       diffImageBase64={matchDiffImage}
                       matchScore={matchScore}
                       projectedScore={matchProjectedScore}
+                      verdict={matchVerdict}
+                      verdictDetail={matchVerdictDetail}
+                      sectionScores={matchSectionScores}
+                      worstSection={matchWorstSection}
+                      layoutDivergence={matchLayoutDivergence}
                       onReset={handleMatchReset}
                       githubConnected={githubConnected}
                       onConnectGitHub={() => router.push('/settings')}

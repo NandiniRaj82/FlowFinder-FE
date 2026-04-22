@@ -7,8 +7,8 @@ interface SplashScreenProps {
   duration?: number;
 }
 
-const SplashScreen: React.FC<SplashScreenProps> = ({ 
-  onComplete, 
+const SplashScreen: React.FC<SplashScreenProps> = ({
+  onComplete,
   duration = 4000
 }) => {
   const [isVisible, setIsVisible] = useState(true);
@@ -153,15 +153,14 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
       `}</style>
 
       <div
-        className={`fixed inset-0 z-[9999] flex items-center justify-center bg-white transition-opacity ${
-          isFadingOut ? 'opacity-0 duration-[800ms]' : 'opacity-100'
-        }`}
+        className={`fixed inset-0 z-[9999] flex items-center justify-center bg-white transition-opacity ${isFadingOut ? 'opacity-0 duration-[800ms]' : 'opacity-100'
+          }`}
       >
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-[150px] -left-[150px] w-[300px] h-[300px] rounded-full bg-gradient-to-br from-orange-400 to-blue-500 opacity-[0.08] animate-float" />
-          
+
           <div className="absolute top-[60%] -right-[100px] w-[200px] h-[200px] rounded-full bg-gradient-to-br from-purple-400 to-orange-600 opacity-[0.08] animate-float-delayed" />
-          
+
           <div className="absolute -bottom-[125px] left-[30%] w-[250px] h-[250px] rounded-full bg-gradient-to-br from-orange-300 to-amber-400 opacity-[0.08] animate-float-slow" />
         </div>
 
@@ -177,22 +176,22 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
             <div className="absolute left-1/2 top-1/2 w-[140px] h-[140px] -ml-[70px] -mt-[70px]">
               <div className="w-full h-full rounded-full border-2 border-transparent border-t-orange-500/40 border-r-orange-500/20 animate-ring-rotate" />
             </div>
-            
+
             <div className="absolute left-1/2 top-1/2 w-[170px] h-[170px] -ml-[85px] -mt-[85px]">
               <div className="w-full h-full rounded-full border-2 border-transparent border-b-amber-600/40 border-l-amber-600/20 animate-ring-rotate-reverse" />
             </div>
-            
+
             <div className="relative w-[90px] h-[90px] opacity-0 animate-icon-reveal">
               <div className="absolute left-1/2 top-[8px] w-[24px] h-[24px] -ml-[12px] rounded-full bg-gradient-to-br from-orange-500 to-amber-600 animate-head-pulse" />
-              
+
               <div className="absolute left-1/2 top-[36px] w-[3px] h-[32px] -ml-[1.5px] rounded-sm bg-gradient-to-b from-orange-500 to-amber-600" />
-              
+
               <div className="absolute left-1/2 top-[46px] -ml-[32px]">
                 <div className="w-[64px] h-[3px] rounded-sm bg-gradient-to-r from-orange-500 to-amber-600" />
                 <div className="absolute left-0 top-0 w-[14px] h-[3px] rounded-sm bg-gradient-to-r from-orange-500 to-amber-600 origin-left -rotate-[30deg]" />
                 <div className="absolute right-0 top-0 w-[14px] h-[3px] rounded-sm bg-gradient-to-r from-orange-500 to-amber-600 origin-right rotate-[30deg]" />
               </div>
-              
+
               <div className="absolute left-1/2 top-[68px] -ml-[1px]">
                 <div className="absolute left-[6px] w-[3px] h-[26px] rounded-sm bg-gradient-to-r from-orange-500 to-amber-600 origin-top -rotate-[20deg]" />
                 <div className="absolute right-[6px] w-[3px] h-[26px] rounded-sm bg-gradient-to-r from-orange-500 to-amber-600 origin-top rotate-[20deg]" />
@@ -200,14 +199,14 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
             </div>
           </div>
 
-          <h1 
+          <h1
             className="text-5xl md:text-6xl font-black bg-gradient-to-r from-orange-600 to-amber-700 bg-clip-text text-transparent mb-3 opacity-0 animate-name-slide-in"
             style={{ fontFamily: '"Playfair Display", serif', letterSpacing: '-0.025em' }}
           >
             Flow Finder
           </h1>
 
-          <p 
+          <p
             className="text-base md:text-lg text-slate-600 font-medium tracking-wide opacity-0 animate-tagline-fade-in"
             style={{ fontFamily: '"DM Sans", sans-serif' }}
           >
