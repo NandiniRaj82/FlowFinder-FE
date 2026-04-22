@@ -14,11 +14,11 @@ interface Props {
 }
 
 const FRAMEWORKS = [
-  { id: 'html',    label: 'HTML/CSS/JS', icon: '🌐', desc: 'Plain HTML file, works anywhere' },
-  { id: 'react',   label: 'React JSX',   icon: '⚛️',  desc: 'React component, single file' },
-  { id: 'nextjs',  label: 'Next.js',     icon: '▲',  desc: 'Next.js page component' },
-  { id: 'vue',     label: 'Vue.js',      icon: '💚',  desc: 'Vue 3 SFC (.vue file)' },
-  { id: 'angular', label: 'Angular',     icon: '🔴',  desc: 'Angular standalone component' },
+  { id: 'html', label: 'HTML/CSS/JS', icon: '🌐', desc: 'Plain HTML file, works anywhere' },
+  { id: 'react', label: 'React JSX', icon: '⚛️', desc: 'React component, single file' },
+  { id: 'nextjs', label: 'Next.js', icon: '▲', desc: 'Next.js page component' },
+  { id: 'vue', label: 'Vue.js', icon: '💚', desc: 'Vue 3 SFC (.vue file)' },
+  { id: 'angular', label: 'Angular', icon: '🔴', desc: 'Angular standalone component' },
 ];
 
 const CUSTOM_EXAMPLES = [
@@ -78,13 +78,13 @@ const PRESET_STYLES = [
 ];
 
 const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing }) => {
-  const [websiteUrl, setWebsiteUrl]         = useState('');
-  const [framework, setFramework]           = useState('html');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [framework, setFramework] = useState('html');
   const [selectedPresets, setSelectedPresets] = useState<string[]>(['minimal', 'bold', 'colorful']);
-  const [customPrompts, setCustomPrompts]   = useState<string[]>([]);
+  const [customPrompts, setCustomPrompts] = useState<string[]>([]);
   const [showExampleFor, setShowExampleFor] = useState<number | null>(null);
-  const [urlError, setUrlError]             = useState('');
-  const [selError, setSelError]             = useState('');
+  const [urlError, setUrlError] = useState('');
+  const [selError, setSelError] = useState('');
 
   // Count of valid custom prompts (filled in)
   const validCustomCount = customPrompts.filter(p => p.trim().length > 5).length;
@@ -148,7 +148,7 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
         <div className="text-center mb-8 fade-up">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-200">
             <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           </div>
           <h2 className="text-3xl font-black text-slate-900 mb-2 tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>
@@ -176,7 +176,7 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
               />
               {websiteUrl && !isProcessing && (
                 <button onClick={() => setWebsiteUrl('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center">
-                  <svg className="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+                  <svg className="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               )}
             </div>
@@ -210,7 +210,7 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
                   </div>
                   {framework === fw.id && (
                     <svg className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0 ml-auto" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   )}
                 </button>
@@ -254,7 +254,7 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
                     >
                       {isSelected && (
                         <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                         </svg>
                       )}
                     </div>
@@ -279,7 +279,7 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                 </svg>
                 <div>
                   <p className="text-sm font-bold text-slate-700">Custom Styles</p>
@@ -293,7 +293,7 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold rounded-lg hover:bg-indigo-100 transition-all disabled:opacity-50"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4"/>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                   </svg>
                   Add Custom Style
                 </button>
@@ -320,7 +320,7 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
                         title="Remove this custom style"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
                     </div>
@@ -338,7 +338,7 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
                       className="mt-2 flex items-center gap-1 text-xs text-slate-400 hover:text-indigo-600 font-medium transition-colors"
                     >
                       <svg className={`w-3 h-3 transition-transform ${showExampleFor === idx ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                       Quick examples
                     </button>
@@ -364,24 +364,13 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
           {selError && (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
               <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
               <p className="text-xs font-semibold text-red-600">{selError}</p>
             </div>
           )}
 
           {/* Info */}
-          <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
-            <p className="text-xs font-bold text-indigo-700 mb-2">How accuracy works</p>
-            <div className="space-y-1">
-              {[
-                '① Waits for JS to fully render — catches dynamically loaded content',
-                '② Scrolls entire page to trigger lazy-loaded sections',
-                '③ Scrapes ALL headings, paragraphs, list items, badges, and tech stack tags',
-                `④ Generates ${designCount} complete ${FRAMEWORKS.find(f => f.id === framework)?.label || 'HTML'} file${designCount !== 1 ? 's' : ''} with your exact content`,
-              ].map((s, i) => <p key={i} className="text-xs text-indigo-700">{s}</p>)}
-            </div>
-          </div>
 
           {/* Actions */}
           <div className="flex items-center gap-3">
@@ -399,8 +388,8 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
               {isProcessing ? (
                 <span className="flex items-center justify-center gap-2">
                   <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                   Scraping &amp; generating {designCount} design{designCount !== 1 ? 's' : ''}… (~60–90s)
                 </span>

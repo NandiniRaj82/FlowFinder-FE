@@ -16,6 +16,8 @@ interface MappedFile {
   diff: string;
   confidence: number;
   changes: { original: string; fixed: string; reason: string }[];
+  originalContent?: string;  // full original file
+  fixedContent?: string;     // full fixed file
 }
 
 interface DiffViewerProps {
@@ -42,6 +44,29 @@ export default function DiffViewer({ sessionId, mappedFiles, unmappedErrors, rep
 
   const confidenceColor = (c: number) => c >= 80 ? '#22c55e' : c >= 50 ? '#f59e0b' : '#ef4444';
   const confidenceLabel = (c: number) => c >= 80 ? 'High' : c >= 50 ? 'Medium' : 'Low';
+
+  // Count real added/removed lines from the diff or from original/fixed content
+  const diffCounts = (file: MappedFile): { added: number; removed: number } => {
+    // Preferred: compare original vs fixed content line-by-line
+    if (file.originalContent && file.fixedContent) {
+      const origLines = new Set(file.originalContent.split('\n'));
+      const fixedLines = new Set(file.fixedContent.split('\n'));
+      const origArr = file.originalContent.split('\n');
+      const fixedArr = file.fixedContent.split('\n');
+      let removed = 0, added = 0;
+      origArr.forEach(l => { if (!fixedLines.has(l)) removed++; });
+      fixedArr.forEach(l => { if (!origLines.has(l)) added++; });
+      return { added, removed };
+    }
+    // Fallback: parse unified diff string
+    if (file.diff) {
+      const lines = file.diff.split('\n');
+      const added = lines.filter(l => l.startsWith('+') && !l.startsWith('+++')).length;
+      const removed = lines.filter(l => l.startsWith('-') && !l.startsWith('---')).length;
+      return { added, removed };
+    }
+    return { added: file.changes.length, removed: file.changes.length };
+  };
 
   if (showPRCreator) {
     return (
@@ -116,8 +141,8 @@ export default function DiffViewer({ sessionId, mappedFiles, unmappedErrors, rep
                           <p style={{ margin: '0 0 2px', fontSize: '13px', fontWeight: 600, color: isSelected ? '#ea580c' : '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fileName}</p>
                           {dir && <p style={{ margin: '0 0 4px', fontSize: '11px', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{dir}</p>}
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontSize: '10px', color: '#ef4444', fontWeight: 700 }}>−{file.changes.length}</span>
-                            <span style={{ fontSize: '10px', color: '#22c55e', fontWeight: 700 }}>+{file.changes.length}</span>
+                            <span style={{ fontSize: '10px', color: '#ef4444', fontWeight: 700 }}>−{diffCounts(file).removed}</span>
+                            <span style={{ fontSize: '10px', color: '#22c55e', fontWeight: 700 }}>+{diffCounts(file).added}</span>
                             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}>
                               <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: confidenceColor(file.confidence) }} />
                               <span style={{ fontSize: '10px', color: '#94a3b8' }}>{confidenceLabel(file.confidence)}</span>
@@ -194,12 +219,20 @@ export default function DiffViewer({ sessionId, mappedFiles, unmappedErrors, rep
                 </div>
               </div>
 
-              {/* Monaco diff editor */}
+              {/* Monaco diff editor — shows full original vs full fixed file */}
               <div style={{ height: '500px' }}>
                 <MonacoDiffEditor
-                  language={selectedFile.filePath.endsWith('.css') || selectedFile.filePath.endsWith('.scss') ? 'css' : selectedFile.filePath.endsWith('.html') ? 'html' : 'typescript'}
-                  original={selectedFile.changes.map(c => c.original).join('\n\n// ---\n\n')}
-                  modified={selectedFile.changes.map(c => c.fixed).join('\n\n// ---\n\n')}
+                  language={
+                    /\.(css|scss|less|sass)$/i.test(selectedFile.filePath) ? 'css' :
+                    /\.html?$/i.test(selectedFile.filePath) ? 'html' :
+                    /\.(jsx|tsx)$/.test(selectedFile.filePath) ? 'typescript' :
+                    /\.vue$/i.test(selectedFile.filePath) ? 'html' :
+                    /\.svelte$/i.test(selectedFile.filePath) ? 'html' :
+                    /\.(js|mjs|cjs)$/.test(selectedFile.filePath) ? 'javascript' :
+                    'typescript'
+                  }
+                  original={selectedFile.originalContent ?? selectedFile.changes.map(c => c.original).join('\n\n// ---\n\n')}
+                  modified={selectedFile.fixedContent ?? selectedFile.changes.map(c => c.fixed).join('\n\n// ---\n\n')}
                   theme="vs-dark"
                   options={{
                     readOnly: true,
@@ -215,8 +248,8 @@ export default function DiffViewer({ sessionId, mappedFiles, unmappedErrors, rep
                 />
               </div>
 
-              {/* Change annotations */}
-              {selectedFile.changes.length > 0 && (
+              {/* Change explanations — skip placeholder entries */}
+              {selectedFile.changes.filter(c => c.reason && c.original !== '[full file replacement]' || c.reason).length > 0 && (
                 <div style={{ padding: '16px 20px', borderTop: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <p style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Fix explanations</p>
                   {selectedFile.changes.map((change, i) => (

@@ -13,6 +13,18 @@ interface ScanDetailsProps {
 
 interface Repo { fullName: string; name: string; language: string; defaultBranch: string; updatedAt: string; }
 interface FixResult { sessionId: string; mappedFiles: any[]; unmappedErrors: any[]; totalErrors: number; fixedErrors: number; filesChanged: number; framework: string; }
+interface FixHistoryItem {
+  _id: string;
+  status: string;
+  repoFullName: string;
+  totalFilesChanged: number;
+  totalFixesApplied: number;
+  prUrl?: string;
+  prNumber?: number;
+  branchName?: string;
+  createdAt: string;
+  framework?: string;
+}
 
 const impactBadge: Record<string, { bg: string; color: string }> = {
   critical: { bg: '#fef2f2', color: '#b91c1c' },
@@ -37,6 +49,10 @@ export default function ScanDetails({ scanId, githubConnected, githubUsername, o
   const [fixResult, setFixResult] = useState<FixResult | null>(null);
   const [fixError, setFixError] = useState<string | null>(null);
   const [isCached, setIsCached] = useState(false);
+  const [fixProgress, setFixProgress] = useState<{ stage: number; label: string; sub: string } | null>(null);
+
+  // Fix history
+  const [fixHistory, setFixHistory] = useState<FixHistoryItem[]>([]);
 
   // View
   const [view, setView] = useState<'errors' | 'diff'>('errors');
@@ -45,6 +61,13 @@ export default function ScanDetails({ scanId, githubConnected, githubUsername, o
     api.get<any>(`/api/scans/${scanId}`)
       .then(d => { setScan(d.scan); setLoadingScan(false); })
       .catch(() => setLoadingScan(false));
+  }, [scanId]);
+
+  // Load fix history for this scan
+  useEffect(() => {
+    api.get<any>(`/api/fixes/by-scan/${scanId}`)
+      .then(d => setFixHistory(d.sessions || []))
+      .catch(() => {});
   }, [scanId]);
 
   useEffect(() => {
@@ -60,25 +83,49 @@ export default function ScanDetails({ scanId, githubConnected, githubUsername, o
     r.name.toLowerCase().includes(repoSearch.toLowerCase())
   );
 
+  const FIX_STAGES = [
+    { label: 'Fetching repository file tree',   sub: 'Reading your repo structure from GitHub' },
+    { label: 'Mapping errors to source files',  sub: 'AI is locating each issue in your code' },
+    { label: 'Generating fixes with AI',        sub: 'Creating exact code patches for each file' },
+    { label: 'Preparing diff view',             sub: 'Formatting changes for review' },
+  ];
+
   const handleGenerateFixes = async (forceRefresh = false) => {
     if (!selectedRepo) return;
     setGeneratingFixes(true);
     setFixError(null);
     setFixResult(null);
     setIsCached(false);
+
+    // Simulate progress stages while waiting for the API
+    const stageDurations = [3000, 8000, 12000];
+    let elapsed = 0;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    FIX_STAGES.forEach((s, i) => {
+      const t = setTimeout(() => setFixProgress({ stage: i, label: s.label, sub: s.sub }), elapsed);
+      timers.push(t);
+      elapsed += stageDurations[i] ?? 0;
+    });
+    setFixProgress({ stage: 0, label: FIX_STAGES[0].label, sub: FIX_STAGES[0].sub });
+
     try {
       const result = await api.post<any>('/api/fixes/generate', {
         scanId,
         repoFullName: selectedRepo,
         forceRefresh,
       });
+      timers.forEach(clearTimeout);
+      setFixProgress({ stage: 3, label: FIX_STAGES[3].label, sub: FIX_STAGES[3].sub });
+      await new Promise(r => setTimeout(r, 400));
       setFixResult(result);
       setIsCached(!!result.cached);
       setView('diff');
     } catch (err: any) {
+      timers.forEach(clearTimeout);
       setFixError(err.message);
     } finally {
       setGeneratingFixes(false);
+      setFixProgress(null);
     }
   };
 
@@ -299,28 +346,90 @@ export default function ScanDetails({ scanId, githubConnected, githubUsername, o
                   ))}
                 </div>
 
+                {/* Progress indicator */}
+                {generatingFixes && fixProgress && (
+                  <div style={{ marginBottom: 16, background: '#f5f3ff', border: '1.5px solid #ddd6fe', borderRadius: 12, padding: '16px 18px' }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 14px' }}>Generating fixes</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                      {FIX_STAGES.map((s, i) => {
+                        const isDone = i < fixProgress.stage;
+                        const isActive = i === fixProgress.stage;
+                        return (
+                          <div key={i} style={{ display: 'flex', gap: 0, alignItems: 'stretch' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 28 }}>
+                              <div style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDone ? '#22c55e' : isActive ? '#7c3aed' : '#e2e8f0', border: `2px solid ${isDone ? '#22c55e' : isActive ? '#7c3aed' : '#e2e8f0'}`, boxShadow: isActive ? '0 0 8px rgba(124,58,237,0.4)' : 'none', transition: 'all .3s' }}>
+                                {isDone
+                                  ? <svg width="10" height="10" fill="none" stroke="#fff" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg>
+                                  : isActive
+                                    ? <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff', display: 'block', animation: 'pulse 1s infinite' }} />
+                                    : <span style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8' }}>{i + 1}</span>}
+                              </div>
+                              {i < FIX_STAGES.length - 1 && <div style={{ width: 2, flex: 1, minHeight: 14, background: isDone ? '#22c55e' : '#e2e8f0', margin: '2px 0', transition: 'background .3s' }} />}
+                            </div>
+                            <div style={{ paddingLeft: 10, paddingBottom: i < FIX_STAGES.length - 1 ? 14 : 0, paddingTop: 2, flex: 1 }}>
+                              <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: isDone ? '#22c55e' : isActive ? '#7c3aed' : '#94a3b8', transition: 'color .3s' }}>{s.label}</p>
+                              {isActive && <p style={{ margin: '1px 0 0', fontSize: 11, color: '#64748b' }}>{s.sub}</p>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ marginTop: 12, height: 3, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#7c3aed,#ea580c)', width: `${Math.round((fixProgress.stage / (FIX_STAGES.length - 1)) * 100)}%`, transition: 'width 1s ease' }} />
+                    </div>
+                  </div>
+                )}
+
                 <button
                   onClick={() => handleGenerateFixes(false)}
                   disabled={!selectedRepo || generatingFixes || scan.errors?.length === 0}
-                  style={{ width: '100%', padding: '12px', background: !selectedRepo || generatingFixes ? '#e2e8f0' : 'linear-gradient(135deg,#ea580c,#f59e0b)', border: 'none', borderRadius: '10px', cursor: !selectedRepo || generatingFixes ? 'not-allowed' : 'pointer', color: !selectedRepo || generatingFixes ? '#94a3b8' : '#fff', fontSize: '14px', fontWeight: 700, transition: 'all 0.2s' }}
+                  style={{ width: '100%', padding: '12px', background: !selectedRepo || generatingFixes ? '#e2e8f0' : 'linear-gradient(135deg,#ea580c,#f59e0b)', border: 'none', borderRadius: '10px', cursor: !selectedRepo || generatingFixes ? 'not-allowed' : 'pointer', color: !selectedRepo || generatingFixes ? '#94a3b8' : '#fff', fontSize: '14px', fontWeight: 700, transition: 'all 0.2s', fontFamily: 'inherit' }}
                 >
-                  {generatingFixes ? (
-                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                      <svg style={{ animation: 'spin 1s linear infinite' }} width="16" height="16" fill="none" viewBox="0 0 24 24"><circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                      Mapping & generating...
-                    </span>
-                  ) : '⚡ Generate Fixes'}
+                  {generatingFixes ? 'Analyzing & generating fixes…' : 'Generate Fixes'}
                 </button>
 
-                {generatingFixes && (
-                  <p style={{ textAlign: 'center', fontSize: '11px', color: '#94a3b8', marginTop: '8px', lineHeight: 1.4 }}>
-                    Fetching source files, mapping errors, and generating fixes with Gemini AI...
-                  </p>
-                )}
               </>
             )}
           </div>
         </div>
+
+        {/* ── Fix History ── */}
+        {fixHistory.length > 0 && (
+          <div style={{ marginTop: '16px', background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden' }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <p style={{ margin: 0, fontWeight: 800, fontSize: '13px', color: '#0f172a' }}>Fix History</p>
+              <span style={{ fontSize: '11px', color: '#94a3b8' }}>{fixHistory.length} session{fixHistory.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {fixHistory.map(session => {
+                const statusStyles: Record<string, { bg: string; color: string; label: string }> = {
+                  pr_created:  { bg: '#f0fdf4', color: '#15803d', label: 'PR Created' },
+                  review:      { bg: '#fef9c3', color: '#a16207', label: 'In Review' },
+                  error:       { bg: '#fef2f2', color: '#b91c1c', label: 'Error' },
+                  creating_pr: { bg: '#eff6ff', color: '#1d4ed8', label: 'Creating…' },
+                  generating:  { bg: '#faf5ff', color: '#7e22ce', label: 'Generating' },
+                };
+                const badge = statusStyles[session.status] || { bg: '#f1f5f9', color: '#64748b', label: session.status };
+                return (
+                  <div key={session._id} style={{ padding: '10px 12px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <span style={{ padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, background: badge.bg, color: badge.color }}>{badge.label}</span>
+                      <span style={{ fontSize: '11px', color: '#94a3b8', marginLeft: 'auto' }}>{new Date(session.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <p style={{ margin: '0 0 2px', fontSize: '12px', fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{session.repoFullName}</p>
+                    <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>{session.totalFilesChanged} file{session.totalFilesChanged !== 1 ? 's' : ''} · {session.totalFixesApplied} fix{session.totalFixesApplied !== 1 ? 'es' : ''}</p>
+                    {session.prUrl && (
+                      <a href={session.prUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '11px', fontWeight: 700, color: '#7c3aed', textDecoration: 'none' }}>
+                        View PR #{session.prNumber} ↗
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

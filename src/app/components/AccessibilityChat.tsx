@@ -73,14 +73,17 @@ const SuggestionCard = ({ s, i }: { s: Suggestion; i: number }) => {
             <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
             <div className="min-w-0">
               <p className="font-semibold text-slate-800 text-sm truncate">{norm.errorType}</p>
-              {norm.location && <p className="text-xs text-orange-500 mt-0.5 truncate">📍 {norm.location}</p>}
+              {norm.location && <p className="text-xs text-orange-500 mt-0.5 truncate flex items-center gap-1">
+                <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                {norm.location}
+              </p>}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <SeverityBadge severity={norm.severity || ''} />
             {norm.source && (
               <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${norm.source === 'lighthouse' ? 'bg-purple-100 text-purple-700' : 'bg-cyan-100 text-cyan-700'}`}>
-                {norm.source === 'lighthouse' ? '🔦' : '🪓'}
+                {norm.source === 'lighthouse' ? 'LH' : 'AX'}
               </span>
             )}
             <svg className={`w-4 h-4 text-slate-400 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -99,13 +102,19 @@ const SuggestionCard = ({ s, i }: { s: Suggestion; i: number }) => {
           )}
           {norm.originalCode && (
             <div>
-              <p className="text-xs font-bold text-red-500 mb-1">❌ Original code</p>
+              <p className="text-xs font-bold text-red-500 mb-1 flex items-center gap-1">
+                <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: '#ef4444', color: '#fff', fontSize: 8, fontWeight: 900, textAlign: 'center', lineHeight: '12px' }}>✕</span>
+                Original code
+              </p>
               <pre className="text-xs bg-red-50 border border-red-100 rounded-xl p-3 overflow-x-auto text-red-800 whitespace-pre-wrap">{norm.originalCode}</pre>
             </div>
           )}
           {norm.codeExample && (
             <div>
-              <p className="text-xs font-bold text-green-600 mb-1">✅ Fixed code</p>
+              <p className="text-xs font-bold text-green-600 mb-1 flex items-center gap-1">
+                <svg width="12" height="12" fill="none" stroke="#16a34a" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/></svg>
+                Fixed code
+              </p>
               <pre className="text-xs bg-green-50 border border-green-100 rounded-xl p-3 overflow-x-auto text-green-800 whitespace-pre-wrap">{norm.codeExample}</pre>
             </div>
           )}
@@ -214,7 +223,7 @@ const AccessibilityChat: React.FC<Props> = ({ errors, fileName, initialChoice, o
           {
             id: `hint-${Date.now()}`,
             role: 'assistant',
-            text: `💬 Chat is enabled! Ask me anything about these issues:\n• "Explain issue #1 in detail"\n• "How do I fix the button accessibility issue?"\n• "Which issue should I fix first?"\n• "What is WCAG 2.1?"`,
+            text: `Chat is enabled! Ask me anything about these issues:\n\u2022 "Explain issue #1 in detail"\n\u2022 "How do I fix the button accessibility issue?"\n\u2022 "Which issue should I fix first?"\n\u2022 "What is WCAG 2.1?"`,
           }
         ]);
       }
@@ -232,7 +241,7 @@ const AccessibilityChat: React.FC<Props> = ({ errors, fileName, initialChoice, o
 
   const runInitialFlow = async () => {
     if (suggestions.length === 0) {
-      addMsg({ role: 'assistant', text: `I've scanned "${fileName}" and found no accessibility issues. Your code looks great! 🎉` });
+      addMsg({ role: 'assistant', text: `I've scanned "${fileName}" and found no accessibility issues. Your code looks great!` });
       return;
     }
     addMsg({
@@ -263,10 +272,10 @@ const AccessibilityChat: React.FC<Props> = ({ errors, fileName, initialChoice, o
     try {
       const data = await api.post<any>('/api/accessibility/chat', { sessionId, message: text });
       setIsTyping(false);
-      addMsg({ role: 'assistant', text: data.success ? data.reply : `❌ ${data.message}` });
+      addMsg({ role: 'assistant', text: data.success ? data.reply : `Error: ${data.message}` });
     } catch {
       setIsTyping(false);
-      addMsg({ role: 'assistant', text: '❌ Network error. Please try again.' });
+      addMsg({ role: 'assistant', text: 'Network error. Please try again.' });
     } finally {
       setIsSending(false);
       inputRef.current?.focus();
@@ -300,12 +309,14 @@ const AccessibilityChat: React.FC<Props> = ({ errors, fileName, initialChoice, o
                 <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
                 {suggestions.length} issues · {criticalCount} critical
               </span>
-              <span className="text-xs bg-white border border-slate-200 text-slate-500 px-3 py-1.5 rounded-full shadow-sm truncate max-w-xs">
-                📄 {fileName}
+              <span className="text-xs bg-white border border-slate-200 text-slate-500 px-3 py-1.5 rounded-full shadow-sm truncate max-w-xs flex items-center gap-1.5">
+                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                {fileName}
               </span>
               {sessionId && (
-                <span className="text-xs bg-green-50 border border-green-200 text-green-600 px-3 py-1.5 rounded-full">
-                  💬 Chat enabled
+                <span className="text-xs bg-green-50 border border-green-200 text-green-600 px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                  <svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                  Chat enabled
                 </span>
               )}
             </div>

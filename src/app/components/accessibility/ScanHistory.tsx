@@ -57,11 +57,11 @@ export default function ScanHistory({ onSelectScan, githubConnected, onConnectGi
     try {
       await api.delete(`/api/scans/${scanId}`);
       setScans(s => s.filter(sc => sc._id !== scanId));
-    } catch {}
+    } catch { }
   };
 
   return (
-    <div>
+    <div >
       {/* Header */}
       <div style={{ marginBottom: '28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -73,7 +73,7 @@ export default function ScanHistory({ onSelectScan, githubConnected, onConnectGi
           </div>
           {!githubConnected && (
             <button onClick={onConnectGitHub} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: 'linear-gradient(135deg,#1e293b,#334155)', border: 'none', borderRadius: '12px', cursor: 'pointer', color: '#fff', fontSize: '13px', fontWeight: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-              <svg width="16" height="16" fill="#fff" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+              <svg width="16" height="16" fill="#fff" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" /></svg>
               Connect GitHub to fix issues
             </button>
           )}
@@ -105,7 +105,7 @@ export default function ScanHistory({ onSelectScan, githubConnected, onConnectGi
       {/* States */}
       {loading && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {[1,2,3].map(i => (
+          {[1, 2, 3].map(i => (
             <div key={i} style={{ height: '100px', background: 'linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%)', borderRadius: '14px', animation: 'shimmer 1.5s infinite', backgroundSize: '200% 100%' }} />
           ))}
           <style>{`@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
@@ -126,7 +126,7 @@ export default function ScanHistory({ onSelectScan, githubConnected, onConnectGi
             Run the <strong>Flow Finder Chrome Extension</strong> on any website and your scan results will appear here automatically.
           </p>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: '#fff7ed', border: '1.5px solid #fed7aa', borderRadius: '12px', fontSize: '13px', color: '#c2410c', fontWeight: 600 }}>
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             Install the Chrome extension from the repo
           </div>
         </div>
@@ -168,11 +168,11 @@ export default function ScanHistory({ onSelectScan, githubConnected, onConnectGi
 
               {/* Score pills */}
               <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                {(['performance','seo','bestPractices'] as const).map(key => (
+                {(['performance', 'seo', 'bestPractices'] as const).map(key => (
                   scan.scores?.[key] != null && (
                     <div key={key} style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: '13px', fontWeight: 700, color: impactColor(scan.scores[key]) }}>{scan.scores[key]}</div>
-                      <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'capitalize' }}>{key === 'bestPractices' ? 'BP' : key.slice(0,4)}</div>
+                      <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'capitalize' }}>{key === 'bestPractices' ? 'BP' : key.slice(0, 4)}</div>
                     </div>
                   )
                 ))}
@@ -185,10 +185,10 @@ export default function ScanHistory({ onSelectScan, githubConnected, onConnectGi
                   style={{ width: '32px', height: '32px', border: 'none', background: '#fef2f2', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}
                   title="Delete scan"
                 >
-                  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 </button>
                 <div style={{ color: '#94a3b8' }}>
-                  <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
+                  <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                 </div>
               </div>
             </div>

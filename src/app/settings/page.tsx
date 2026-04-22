@@ -22,6 +22,14 @@ export default function SettingsPage() {
   const [disconnecting, setDisconnecting] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
+  // Figma token state
+  const [figmaConnected, setFigmaConnected] = useState(false);
+  const [figmaConnectedAt, setFigmaConnectedAt] = useState<string | null>(null);
+  const [figmaToken, setFigmaToken] = useState('');
+  const [savingFigma, setSavingFigma] = useState(false);
+  const [disconnectingFigma, setDisconnectingFigma] = useState(false);
+  const [loadingFigma, setLoadingFigma] = useState(true);
+
   useEffect(() => {
     if (!loading && !user) router.push('/');
   }, [user, loading, router]);
@@ -50,6 +58,11 @@ export default function SettingsPage() {
       .then(d => setGithubStatus(d))
       .catch(() => {})
       .finally(() => setLoadingGitHub(false));
+    // Also fetch Figma token status
+    api.get<any>('/api/users/figma-token')
+      .then(d => { setFigmaConnected(d.connected); setFigmaConnectedAt(d.connectedAt || null); })
+      .catch(() => {})
+      .finally(() => setLoadingFigma(false));
   }, [user]);
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
@@ -82,6 +95,33 @@ export default function SettingsPage() {
   const handleSignOut = async () => {
     await signOut();
     router.push('/');
+  };
+
+  const handleSaveFigmaToken = async () => {
+    if (!figmaToken.trim()) return showToast('Paste your Figma personal access token first.', 'error');
+    setSavingFigma(true);
+    try {
+      await api.post('/api/users/figma-token', { accessToken: figmaToken.trim() });
+      setFigmaConnected(true);
+      setFigmaConnectedAt(new Date().toISOString());
+      setFigmaToken('');
+      showToast('Figma token saved successfully.');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to save token', 'error');
+    } finally { setSavingFigma(false); }
+  };
+
+  const handleDisconnectFigma = async () => {
+    if (!confirm('Remove your Figma token? Match Design will stop working until you add a new one.')) return;
+    setDisconnectingFigma(true);
+    try {
+      await api.delete('/api/users/figma-token');
+      setFigmaConnected(false);
+      setFigmaConnectedAt(null);
+      showToast('Figma token removed.');
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally { setDisconnectingFigma(false); }
   };
 
   if (loading || !user) return null;
@@ -188,6 +228,54 @@ export default function SettingsPage() {
                 <svg width="18" height="18" fill="#fff" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
                 Connect GitHub
               </button>
+            </div>
+          )}
+        </section>
+
+        {/* Figma token card */}
+        <section style={{ background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: '16px', padding: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
+            <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', margin: 0 }}>Figma Integration</h2>
+          </div>
+
+          {loadingFigma ? (
+            <div style={{ height: 80, background: 'linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%)', borderRadius: 10, backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+          ) : figmaConnected ? (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 12, marginBottom: 14 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+                <div>
+                  <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 700, color: '#15803d' }}>Figma token connected</p>
+                  {figmaConnectedAt && <p style={{ margin: 0, fontSize: 12, color: '#4ade80' }}>Added {new Date(figmaConnectedAt).toLocaleDateString()}</p>}
+                </div>
+              </div>
+              <p style={{ fontSize: 13, color: '#64748b', marginBottom: 14, lineHeight: 1.6 }}>Your personal Figma access token is stored securely. The Match Design feature uses it to fetch your Figma frames.</p>
+              <button onClick={handleDisconnectFigma} disabled={disconnectingFigma}
+                style={{ padding: '9px 18px', background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 10, cursor: disconnectingFigma ? 'not-allowed' : 'pointer', color: '#b91c1c', fontSize: 13, fontWeight: 600 }}>
+                {disconnectingFigma ? 'Removing...' : 'Remove Figma Token'}
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div style={{ padding: '14px 16px', background: '#f5f3ff', border: '1.5px solid #ddd6fe', borderRadius: 12, marginBottom: 16 }}>
+                <p style={{ margin: '0 0 4px', fontWeight: 700, color: '#5b21b6', fontSize: 14 }}>Figma token required</p>
+                <p style={{ margin: 0, color: '#7c3aed', fontSize: 13, lineHeight: 1.5 }}>Match Design needs a personal Figma access token to export your design frames. Get one at figma.com/settings under Personal access tokens.</p>
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <input
+                  type="password"
+                  value={figmaToken}
+                  onChange={e => setFigmaToken(e.target.value)}
+                  placeholder="figd_xxxxxxxxxxxx..."
+                  style={{ flex: 1, padding: '10px 14px', border: '1.5px solid #ddd6fe', borderRadius: 10, fontSize: 13, outline: 'none', fontFamily: 'monospace' }}
+                />
+                <button onClick={handleSaveFigmaToken} disabled={savingFigma || !figmaToken.trim()}
+                  style={{ padding: '10px 18px', background: !figmaToken.trim() || savingFigma ? '#e2e8f0' : 'linear-gradient(135deg,#7c3aed,#a855f7)', border: 'none', borderRadius: 10, cursor: !figmaToken.trim() || savingFigma ? 'not-allowed' : 'pointer', color: !figmaToken.trim() || savingFigma ? '#94a3b8' : '#fff', fontSize: 13, fontWeight: 700 }}>
+                  {savingFigma ? 'Saving...' : 'Save Token'}
+                </button>
+              </div>
+              <p style={{ marginTop: 8, fontSize: 11, color: '#94a3b8' }}>Your token is stored encrypted and never shared.</p>
             </div>
           )}
         </section>
