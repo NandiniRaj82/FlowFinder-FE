@@ -10,11 +10,11 @@ interface Props {
 }
 
 const STAGES = [
-  { id: 'screenshot', label: 'Capturing live site', sub: 'Rendering your page at 1440px wide' },
-  { id: 'figma',      label: 'Fetching Figma design', sub: 'Exporting frame via Figma API' },
-  { id: 'pixeldiff',  label: 'Running pixel comparison', sub: 'Comparing every pixel across both images' },
-  { id: 'css',        label: 'Analysing style tokens', sub: 'Matching fonts, colours and spacing' },
-  { id: 'complete',   label: 'Building report', sub: 'Preparing your mismatch analysis' },
+  { id: 'figma',      label: 'Ingesting Figma design', sub: 'Extracting frame dimensions & node tree' },
+  { id: 'screenshot', label: 'Capturing live site', sub: 'Viewport synced to Figma frame size' },
+  { id: 'spatial',    label: 'Spatial matching (IoU)', sub: 'Matching elements by position & text' },
+  { id: 'diffing',    label: 'Property diffing engine', sub: 'Comparing colors, fonts, spacing, borders' },
+  { id: 'complete',   label: 'Building drift report', sub: 'VLM fallback + final analysis' },
 ];
 
 // Durations for stages 0-3 (ms). Stage 4 stays active until isProcessing becomes false.
@@ -120,7 +120,7 @@ const MatchDesignForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing, erro
             Match Design
           </h1>
           <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>
-            Pixel-perfect comparison between your live site and Figma design
+            Spatial comparison using IoU matching between your live site and Figma design
           </p>
         </div>
 
@@ -252,7 +252,7 @@ const MatchDesignForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing, erro
                 How it works
               </p>
               <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
-                {['Screenshot site', 'Fetch Figma', 'Pixel diff', 'Style analysis', 'Report'].map((step, i) => (
+                {['Ingest Figma', 'Sync viewport', 'IoU match', 'Property diff', 'Drift report'].map((step, i) => (
                   <React.Fragment key={i}>
                     <span style={{ fontSize: 11, color: '#6366f1', fontWeight: 600, background: '#ede9fe', padding: '2px 7px', borderRadius: 99 }}>{step}</span>
                     {i < 4 && <span style={{ color: '#94a3b8', fontSize: 10 }}>›</span>}

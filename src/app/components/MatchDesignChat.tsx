@@ -17,6 +17,9 @@ interface Mismatch {
   figmaValue: string;
   liveValue: string;
   boundingBox?: BoundingBox;
+  property?: string;
+  delta?: number;
+  matchConfidence?: number;
 }
 interface Props {
   mismatches: Mismatch[];
@@ -307,7 +310,7 @@ const MatchDesignChat: React.FC<Props> = ({
                 <div className="h-1.5 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500" />
                 <div className="px-8 py-7">
                   <h2 className="text-sm font-bold text-slate-700 mb-1 flex items-center gap-2"><svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg>Design Match Score</h2>
-                  <p className="text-xs text-slate-400 mb-5">Full-page pixel-accurate comparison — every section analysed</p>
+                  <p className="text-xs text-slate-400 mb-5">Hybrid spatial + pixel comparison — IoU element matching with property diffing</p>
 
                   {/* Verdict banner */}
                   {verdictDetail && (
@@ -439,8 +442,8 @@ const MatchDesignChat: React.FC<Props> = ({
                                 <span className="text-xs font-medium px-2 py-0.5 rounded bg-violet-100 text-violet-700">{m.category}</span>
                               </div>
                             </div>
-                            <p className="text-[11px] text-slate-400 font-medium mb-1.5">📌 {m.location}</p>
-                            <p className="text-xs text-slate-500 leading-relaxed mb-3">{m.description}</p>
+                            <p className="text-[11px] text-slate-400 font-medium mb-1.5">📌 {m.location}{m.matchConfidence != null && <span className="ml-2 text-violet-500">({m.matchConfidence}% match confidence)</span>}</p>
+                            <p className="text-xs text-slate-500 leading-relaxed mb-3">{m.description}{m.property && <span className="ml-1 text-slate-400">({m.property})</span>}</p>
                             {m.figmaValue && m.figmaValue !== 'N/A' && (
                               <div className="grid grid-cols-2 gap-2">
                                 <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
