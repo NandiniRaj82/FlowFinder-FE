@@ -103,7 +103,7 @@ const SuggestionCard = ({ s, i }: { s: Suggestion; i: number }) => {
           {norm.originalCode && (
             <div>
               <p className="text-xs font-bold text-red-500 mb-1 flex items-center gap-1">
-                <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: '#ef4444', color: '#fff', fontSize: 8, fontWeight: 900, textAlign: 'center', lineHeight: '12px' }}>✕</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 12, height: 12, borderRadius: '50%', background: '#ef4444' }}><svg width="7" height="7" fill="none" stroke="#fff" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M6 18L18 6M6 6l12 12" /></svg></span>
                 Original code
               </p>
               <pre className="text-xs bg-red-50 border border-red-100 rounded-xl p-3 overflow-x-auto text-red-800 whitespace-pre-wrap">{norm.originalCode}</pre>
