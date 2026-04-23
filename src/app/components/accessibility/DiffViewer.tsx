@@ -91,8 +91,9 @@ export default function DiffViewer({ sessionId, mappedFiles, unmappedErrors, rep
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={onBack} style={{ padding: '10px 18px', background: '#f1f5f9', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#475569' }}>
-            ← Back
+          <button onClick={onBack} style={{ padding: '10px 18px', background: '#f1f5f9', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+            Back
           </button>
           <button
             onClick={() => setShowPRCreator(true)}
@@ -159,7 +160,7 @@ export default function DiffViewer({ sessionId, mappedFiles, unmappedErrors, rep
             {/* Unmapped errors */}
             {unmappedErrors.length > 0 && (
               <div style={{ borderTop: '1px solid #f1f5f9', padding: '10px 14px', background: '#fffbeb' }}>
-                <p style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 700, color: '#a16207', textTransform: 'uppercase' }}>⚠ Not mapped ({unmappedErrors.length})</p>
+                <p style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 700, color: '#a16207', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>Not mapped ({unmappedErrors.length})</p>
                 {unmappedErrors.slice(0, 3).map((e, i) => (
                   <p key={i} style={{ margin: '0 0 4px', fontSize: '11px', color: '#92400e' }}>{e.error?.title || e.error?.type || 'Unknown error'}</p>
                 ))}

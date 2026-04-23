@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import UploadSection from './uploadSection';
 import ChoiceCards from './choiceSection';
@@ -13,6 +13,27 @@ import WebsiteRedesignerForm from './DesignSuggesterForm';
 import WebsiteRedesignerResults from './DesignSuggesterResults';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+
+/* ── Website Redesigner types ─────────────────────────────────────────── */
+interface RedesignDesign {
+  style: string;
+  styleName: string;
+  framework: string;
+  frameworkLabel: string;
+  ext: string;
+  code: string;
+  previewHtml?: string;
+  previewType?: 'html' | 'sandpack';
+}
+
+export interface DesignHistoryEntry {
+  id: string;
+  prompt: string;         // e.g. "bold — Bold & Dark"
+  design: RedesignDesign;
+  isSaved: boolean;
+  createdAt: number;      // Date.now()
+  websiteUrl?: string;    // URL that was redesigned
+}
 
 interface DashboardProps {
   user?: { fullName: string; email: string; uid?: string; photoURL?: string | null };
@@ -63,7 +84,27 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
   /* ── Website Redesigner ──────────────────────────────────────────────── */
   const [redesignerStage, setRedesignerStage] = useState<'form' | 'results'>('form');
   const [redesignerProcessing, setRedesignerProcessing] = useState(false);
-  const [redesignerDesigns, setRedesignerDesigns] = useState<any[]>([]);
+
+  // Load persisted history from localStorage on first mount
+  const [designHistory, setDesignHistory] = useState<DesignHistoryEntry[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem('ff_design_history');
+      if (!raw) return [];
+      // Stored entries have no code — re-attach empty code so type is satisfied
+      const meta: Array<Omit<DesignHistoryEntry, 'design'> & { design: Partial<RedesignDesign> }> = JSON.parse(raw);
+      return meta.map(e => ({
+        ...e,
+        design: {
+          style: '', styleName: e.design.styleName || '', framework: e.design.framework || 'html',
+          frameworkLabel: e.design.frameworkLabel || '', ext: e.design.ext || 'html',
+          code: '', previewHtml: e.design.previewHtml || '',
+        },
+      }));
+    } catch { return []; }
+  });
+
+  const [activeDesignId, setActiveDesignId] = useState<string | null>(null);
   const [redesignerWebsiteUrl, setRedesignerWebsiteUrl] = useState('');
   const [redesignerPageTitle, setRedesignerPageTitle] = useState('');
   const [redesignerScreenshot, setRedesignerScreenshot] = useState('');
@@ -71,17 +112,34 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
   const [redesignerStatus, setRedesignerStatus] = useState('');
   const [redesignerPendingStyles, setRedesignerPendingStyles] = useState<string[]>([]);
 
+  // Persist design history metadata to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const meta = designHistory.map(e => ({
+        id: e.id, prompt: e.prompt, isSaved: e.isSaved, createdAt: e.createdAt,
+        websiteUrl: e.websiteUrl,
+        design: {
+          style: e.design.style, styleName: e.design.styleName,
+          framework: e.design.framework, frameworkLabel: e.design.frameworkLabel, ext: e.design.ext,
+          // Only store previewHtml for saved entries to avoid localStorage quota issues
+          ...(e.isSaved ? { previewHtml: e.design.previewHtml || e.design.code || '' } : {}),
+        },
+      }));
+      localStorage.setItem('ff_design_history', JSON.stringify(meta));
+    } catch { /* quota exceeded — skip */ }
+  }, [designHistory]);
+
   /* ── Full reset ──────────────────────────────────────────────────────── */
   const handleFullReset = () => {
     setFeature(null);
     setUploadedFiles([]); setAccessibilityErrors([]); setIsProcessing(false);
     setSelectedChoice(null); setApiResult(null); setStage('upload');
-    setMatchStage('form'); setMatchProcessing(false); setMatchMismatches([]);
-    setMatchWebsiteUrl(''); setMatchFigmaUrl(''); setMatchWebsiteScreenshot(''); setMatchFigmaScreenshot('');
-    setMatchDiffImage(''); setMatchScore(0); setMatchProjectedScore(0); setMatchError(null);
-
-    setRedesignerStage('form'); setRedesignerProcessing(false); setRedesignerDesigns([]);
-    setRedesignerWebsiteUrl(''); setRedesignerPageTitle(''); setRedesignerScreenshot('');
+    // Match Design: reset processing state but KEEP last scan results so they're
+    // visible when the user returns to the feature via View History
+    setMatchStage('form'); setMatchProcessing(false); setMatchError(null);
+    // Redesigner: reset stage/processing but KEEP designHistory so saved designs persist
+    setRedesignerStage('form'); setRedesignerProcessing(false);
     setRedesignerStatus(''); setRedesignerPendingStyles([]);
   };
 
@@ -126,7 +184,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
       }
       setStage('chat');
     } catch (error: any) {
-      alert(`❌ Error: ${error.message}`);
+      alert(`Error: ${error.message}`);
     } finally { setIsProcessing(false); }
   };
 
@@ -204,7 +262,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
 
     setRedesignerProcessing(true);
     setRedesignerWebsiteUrl(websiteUrl);
-    setRedesignerDesigns([]);
+    // Keep existing history — new designs append; reset pending
     setRedesignerPendingStyles(allPending);
     setRedesignerStatus('Scraping site & generating redesigns…');
 
@@ -217,7 +275,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
       const decoder = new TextDecoder();
       let buffer = '';
       let firstDesignReceived = false;
-
 
       while (true) {
         const { done, value } = await reader.read();
@@ -252,19 +309,33 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
 
             } else if (eventName === 'design') {
               const arrivedStyle: string = payload.design?.style || '';
-              setRedesignerDesigns(prev => [...prev, payload.design]);
-              // Remove this style from the pending (skeleton) list
+              const arrivedDesign: RedesignDesign = payload.design;
+
+              // Create a new history entry
+              const entryId = crypto.randomUUID();
+              const entry: DesignHistoryEntry = {
+                id: entryId,
+                prompt: `${arrivedDesign.styleName || arrivedStyle}`,
+                design: arrivedDesign,
+                isSaved: false,
+                createdAt: Date.now(),
+                websiteUrl,
+              };
+
+              setDesignHistory(prev => [...prev, entry]);
               setRedesignerPendingStyles(prev => prev.filter(s => s !== arrivedStyle));
-              // Switch to results page on the very first design
+
+              // Switch to results and make first design active
               if (!firstDesignReceived) {
                 firstDesignReceived = true;
+                setActiveDesignId(entryId);
                 setRedesignerStage('results');
-                setRedesignerProcessing(false); // hide full-screen overlay
+                setRedesignerProcessing(false);
               }
 
             } else if (eventName === 'done') {
               setRedesignerPendingStyles([]);
-              setRedesignerProcessing(false); // all done — isStreaming = false
+              setRedesignerProcessing(false);
               setRedesignerStatus('');
 
             } else if (eventName === 'error') {
@@ -279,7 +350,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
       if (error.message.includes('Not authenticated')) {
         setTimeout(() => { localStorage.clear(); window.location.href = '/signin'; }, 2000);
       }
-      alert(`❌ Error: ${error.message}`);
+      alert(`Error: ${error.message}`);
     } finally {
       setRedesignerProcessing(false);
       setRedesignerPendingStyles([]);
@@ -287,9 +358,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
   };
 
   const handleRedesignerReset = () => {
-    setRedesignerStage('form'); setRedesignerDesigns([]);
-    setRedesignerWebsiteUrl(''); setRedesignerPageTitle(''); setRedesignerScreenshot(''); setRedesignerStats(null);
+    setRedesignerStage('form');
+    setDesignHistory([]);
+    setActiveDesignId(null);
+    setRedesignerWebsiteUrl('');
+    setRedesignerPageTitle('');
+    setRedesignerScreenshot('');
+    setRedesignerStats(null);
     setRedesignerPendingStyles([]);
+  };
+
+  const handleSelectDesign = (id: string) => setActiveDesignId(id);
+
+  const handleToggleSave = (id: string) => {
+    setDesignHistory(prev =>
+      prev.map(entry => entry.id === id ? { ...entry, isSaved: !entry.isSaved } : entry)
+    );
   };
 
   /* ── Derived ─────────────────────────────────────────────────────────── */
@@ -320,7 +404,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
 
       {/* All feature screens */}
       {feature !== null && (
-        <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 relative overflow-hidden flex flex-col">
+        <div className={`${isInChat ? 'h-screen' : 'min-h-screen'} bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 relative overflow-hidden flex flex-col`}>
 
           {/* Loading overlay — only for accessibility and redesigner (NOT match-design — it handles its own pipeline animation) */}
           {anyProcessing && !(feature === 'match-design') && !(feature === 'website-redesigner' && redesignerStage === 'results') && (
@@ -408,7 +492,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
 
                 <button onClick={handleFullReset}
                   className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 border border-slate-200 rounded-lg hover:border-slate-400 transition-all bg-white/60">
-                  ← Home
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg> Home
                 </button>
                 <button
                   onClick={() => router.push('/settings')}
@@ -431,7 +515,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
 
 
           {/* Main */}
-          <main className={`relative z-10 flex-1 ${isInChat ? '' : 'max-w-7xl mx-auto w-full px-6 py-12'}`}>
+          <main className={`relative z-10 flex-1 min-h-0 ${isInChat ? 'overflow-hidden' : 'max-w-7xl mx-auto w-full px-6 py-12'}`}>
 
             {/* ── Accessibility ── */}
             {feature === 'accessibility' && (
@@ -496,6 +580,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
                 {matchStage === 'form' && (
                   <div style={{ height: '100%', overflow: 'auto' }}>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 24px 0', gap: 8 }}>
+                      {/* Resume last scan — visible if a scan was done earlier this session */}
+                      {matchMismatches.length > 0 && (
+                        <button
+                          onClick={() => setMatchStage('chat')}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#fff', fontFamily: 'inherit' }}
+                        >
+                          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                          Resume Last Scan ({matchScore}% match)
+                        </button>
+                      )}
                       <button
                         onClick={handleMatchShowHistory}
                         style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#475569', fontFamily: 'inherit' }}
@@ -545,12 +639,33 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
               <>
                 {redesignerStage === 'form' && (
                   <div className="animate-slide-up">
-                    <WebsiteRedesignerForm onSubmit={handleRedesignerSubmit} onBack={handleFullReset} isProcessing={redesignerProcessing} />
+                    <WebsiteRedesignerForm
+                      onSubmit={handleRedesignerSubmit}
+                      onBack={handleFullReset}
+                      isProcessing={redesignerProcessing}
+                      designHistory={designHistory}
+                      onSelectDesign={(id) => { handleSelectDesign(id); setRedesignerStage('results'); }}
+                      onToggleSave={handleToggleSave}
+                    />
                   </div>
                 )}
                 {redesignerStage === 'results' && (
-                  <div className="animate-fade-in">
-                    <WebsiteRedesignerResults designs={redesignerDesigns} websiteUrl={redesignerWebsiteUrl} pageTitle={redesignerPageTitle} screenshotBase64={redesignerScreenshot} stats={redesignerStats} onReset={handleRedesignerReset} isStreaming={redesignerProcessing} pendingStyles={redesignerPendingStyles} />
+                  <div className="animate-fade-in" style={{ height: '100%' }}>
+                    <WebsiteRedesignerResults
+                      designHistory={designHistory}
+                      activeDesignId={activeDesignId}
+                      websiteUrl={redesignerWebsiteUrl}
+                      pageTitle={redesignerPageTitle}
+                      screenshotBase64={redesignerScreenshot}
+                      stats={redesignerStats}
+                      onReset={() => setRedesignerStage('form')}
+                      isStreaming={redesignerProcessing}
+                      pendingStyles={redesignerPendingStyles}
+                      onSelectDesign={handleSelectDesign}
+                      onToggleSave={handleToggleSave}
+                      githubConnected={githubConnected}
+                      onConnectGitHub={() => router.push('/settings')}
+                    />
                   </div>
                 )}
               </>

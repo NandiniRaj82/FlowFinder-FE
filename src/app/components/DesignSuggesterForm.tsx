@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import type { DesignHistoryEntry } from './dashboard';
 
 interface Props {
   onSubmit: (
@@ -11,14 +12,24 @@ interface Props {
   ) => void;
   onBack: () => void;
   isProcessing: boolean;
+  designHistory?: DesignHistoryEntry[];
+  onSelectDesign?: (id: string) => void;
+  onToggleSave?: (id: string) => void;
 }
 
+/* SVG icon components for frameworks */
+const GlobeIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>;
+const ReactIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.5" /><ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke="currentColor" strokeWidth="1.5" /><ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke="currentColor" strokeWidth="1.5" transform="rotate(60 12 12)" /><ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke="currentColor" strokeWidth="1.5" transform="rotate(120 12 12)" /></svg>;
+const NextIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 19.5h20L12 2z" /></svg>;
+const VueIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2 3h4l6 10.2L18 3h4L12 21 2 3z" /></svg>;
+const AngularIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L3 6.5l1.4 11.1L12 22l7.6-4.4L21 6.5 12 2zm0 2.2l6.5 11.6H14l-2-3.6-2 3.6H5.5L12 4.2z" /></svg>;
+
 const FRAMEWORKS = [
-  { id: 'html', label: 'HTML/CSS/JS', icon: '🌐', desc: 'Plain HTML file, works anywhere' },
-  { id: 'react', label: 'React JSX', icon: '⚛️', desc: 'React component, single file' },
-  { id: 'nextjs', label: 'Next.js', icon: '▲', desc: 'Next.js page component' },
-  { id: 'vue', label: 'Vue.js', icon: '💚', desc: 'Vue 3 SFC (.vue file)' },
-  { id: 'angular', label: 'Angular', icon: '🔴', desc: 'Angular standalone component' },
+  { id: 'html', label: 'HTML/CSS/JS', icon: <GlobeIcon />, desc: 'Plain HTML file, works anywhere' },
+  { id: 'react', label: 'React JSX', icon: <ReactIcon />, desc: 'React component, single file' },
+  { id: 'nextjs', label: 'Next.js', icon: <NextIcon />, desc: 'Next.js page component' },
+  { id: 'vue', label: 'Vue.js', icon: <VueIcon />, desc: 'Vue 3 SFC (.vue file)' },
+  { id: 'angular', label: 'Angular', icon: <AngularIcon />, desc: 'Angular standalone component' },
 ];
 
 const CUSTOM_EXAMPLES = [
@@ -66,18 +77,19 @@ const PRESET_STYLES = [
     tag: 'Vibrant & Creative',
     desc: 'Gradients, rounded corners, energetic feel',
     cardStyle: {
-      background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #6366f1 100%)',
+      background: 'linear-gradient(135deg, #ea580c 0%, #f59e0b 50%, #fbbf24 100%)',
       border: '2px solid',
-      dotColor: '#fde68a',
+      dotColor: '#ffffff',
       textColor: '#ffffff',
-      tagColor: '#e9d5ff',
+      tagColor: '#fff7ed',
     },
-    selectedBorder: '#a855f7',
-    unselectedBorder: '#6d28d9',
+    selectedBorder: '#ea580c',
+    unselectedBorder: '#c2410c',
   },
 ];
 
-const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing }) => {
+const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing, designHistory = [], onSelectDesign, onToggleSave }) => {
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'saved'>('all');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [framework, setFramework] = useState('html');
   const [selectedPresets, setSelectedPresets] = useState<string[]>(['minimal', 'bold', 'colorful']);
@@ -145,7 +157,17 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
       <div className="max-w-2xl mx-auto px-4 pb-12">
 
         {/* Header */}
-        <div className="text-center mb-8 fade-up">
+        <div className="text-center mb-8 fade-up relative">
+          {/* View History button — top right, same style as Match Design */}
+          {designHistory.length > 0 && (
+            <button
+              onClick={() => onSelectDesign?.(designHistory[0]?.id)}
+              style={{ position: 'absolute', top: 0, right: 0, display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 10, border: '1.5px solid #e0e7ff', background: '#fff', fontSize: 13, fontWeight: 700, color: '#6366f1', cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s', boxShadow: '0 1px 4px rgba(0,0,0,.06)' }}
+            >
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              View History
+            </button>
+          )}
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-200">
             <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -159,11 +181,13 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
           </p>
         </div>
 
+
+
         <div className="space-y-5 fade-up" style={{ animationDelay: '0.1s' }}>
 
           {/* URL */}
           <div className="bg-white rounded-2xl border-2 border-slate-200 p-5 shadow-sm">
-            <label className="block text-sm font-bold text-slate-700 mb-2">🌐 Website URL</label>
+            <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-1.5"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>Website URL</label>
             <div className="relative">
               <input type="url" value={websiteUrl}
                 onChange={e => { setWebsiteUrl(e.target.value); setUrlError(''); }}
@@ -180,7 +204,7 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
                 </button>
               )}
             </div>
-            {urlError && <p className="mt-1.5 text-xs text-red-500">⚠️ {urlError}</p>}
+            {urlError && <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>{urlError}</p>}
             <div className="flex flex-wrap gap-2 mt-3">
               {examples.map(ex => (
                 <button key={ex} onClick={() => { setWebsiteUrl(ex); setUrlError(''); }} disabled={isProcessing}
@@ -193,7 +217,7 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
 
           {/* Framework selector */}
           <div className="bg-white rounded-2xl border-2 border-slate-200 p-5 shadow-sm">
-            <label className="block text-sm font-bold text-slate-700 mb-3">⚙️ Output Framework</label>
+            <label className="block text-sm font-bold text-slate-700 mb-3 flex items-center gap-1.5"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>Output Framework</label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {FRAMEWORKS.map(fw => (
                 <button key={fw.id} onClick={() => setFramework(fw.id)} disabled={isProcessing}
@@ -203,7 +227,7 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
                       : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-indigo-300'
                     }
                     ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                  <span className="text-lg flex-shrink-0">{fw.icon}</span>
+                  <span className="flex-shrink-0" style={{ color: framework === fw.id ? '#6366f1' : '#94a3b8' }}>{fw.icon}</span>
                   <div className="min-w-0">
                     <p className="text-xs font-bold truncate">{fw.label}</p>
                     <p className="text-[10px] opacity-60 truncate">{fw.desc}</p>
@@ -221,7 +245,7 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
           {/* ── Preset style toggle cards ── */}
           <div className="bg-white rounded-2xl border-2 border-slate-200 p-5 shadow-sm">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-bold text-slate-700">🎨 Preset Styles</p>
+              <p className="text-sm font-bold text-slate-700 flex items-center gap-1.5"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>Preset Styles</p>
               <span className="text-xs text-slate-400">
                 {selectedPresets.length === 3 ? 'All selected' : `${selectedPresets.length} selected`}
               </span>
@@ -375,8 +399,9 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
           {/* Actions */}
           <div className="flex items-center gap-3">
             <button onClick={onBack} disabled={isProcessing}
-              className="px-6 py-3 text-sm font-semibold text-slate-600 bg-white border-2 border-slate-200 rounded-xl hover:border-slate-400 transition-all disabled:opacity-50">
-              ← Back
+              className="px-6 py-3 text-sm font-semibold text-slate-600 bg-white border-2 border-slate-200 rounded-xl hover:border-slate-400 transition-all disabled:opacity-50 flex items-center gap-1.5">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+              Back
             </button>
             <button
               onClick={handleSubmit}
@@ -400,6 +425,8 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
             </button>
           </div>
         </div>
+
+        {/* History panel is now at the top of the form for consistency with Match Design */}
       </div>
     </>
   );

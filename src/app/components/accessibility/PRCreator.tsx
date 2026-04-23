@@ -50,7 +50,7 @@ export default function PRCreator({ sessionId, acceptedFiles, repoFullName, onBa
         <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'linear-gradient(135deg,#22c55e,#16a34a)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 8px 30px rgba(34,197,94,0.3)' }}>
           <svg width="36" height="36" fill="none" stroke="#fff" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/></svg>
         </div>
-        <h2 style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px' }}>PR Created! 🎉</h2>
+        <h2 style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px' }}>PR Created!</h2>
         <p style={{ color: '#64748b', fontSize: '15px', marginBottom: '28px' }}>
           Pull request #{pr.number} has been opened on <strong>{repoFullName}</strong>
         </p>
@@ -97,8 +97,9 @@ export default function PRCreator({ sessionId, acceptedFiles, repoFullName, onBa
     <div style={{ maxWidth: '680px', margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>
       <div style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
-          <button onClick={onBack} style={{ padding: '8px 14px', background: '#f1f5f9', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#475569' }}>
-            ← Back
+          <button onClick={onBack} style={{ padding: '8px 14px', background: '#f1f5f9', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+            Back
           </button>
           <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: 0 }}>Create Pull Request</h2>
         </div>

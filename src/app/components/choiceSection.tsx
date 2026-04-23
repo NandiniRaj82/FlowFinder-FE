@@ -314,7 +314,7 @@ const ChoiceCards: React.FC<ChoiceCardsProps> = ({
             disabled={isProcessing}
             className="px-8 py-4 bg-white border-2 border-slate-300 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            ← Upload Different File
+            <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>Upload Different File
           </button>
           
           <button

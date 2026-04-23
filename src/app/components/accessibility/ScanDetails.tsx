@@ -148,12 +148,12 @@ export default function ScanDetails({ scanId, githubConnected, githubUsername, o
       <>
         {isCached && (
           <div style={{ marginBottom: '12px', padding: '10px 16px', background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '12px', color: '#15803d', fontWeight: 600 }}>⚡ Showing cached results — no LLM calls made</span>
+            <span style={{ fontSize: '12px', color: '#15803d', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}><svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>Showing cached results — no LLM calls made</span>
             <button
               onClick={() => { setView('errors'); setTimeout(() => handleGenerateFixes(true), 100); }}
               style={{ fontSize: '12px', padding: '4px 10px', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '6px', cursor: 'pointer', color: '#166534', fontWeight: 600 }}
             >
-              🔄 Re-run fresh
+              <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{display:'inline',verticalAlign:'middle',marginRight:3}}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>Re-run fresh
             </button>
           </div>
         )}
@@ -222,7 +222,7 @@ export default function ScanDetails({ scanId, githubConnected, githubUsername, o
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {(!scan.errors || scan.errors.length === 0) ? (
             <div style={{ textAlign: 'center', padding: '40px', background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: '14px' }}>
-              <div style={{ fontSize: '32px', marginBottom: '8px' }}>✅</div>
+              <div style={{ marginBottom: '8px' }}><svg width="32" height="32" fill="none" stroke="#22c55e" viewBox="0 0 24 24" style={{display:'block',margin:'0 auto'}}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
               <p style={{ color: '#15803d', fontWeight: 700, margin: 0 }}>No accessibility issues found!</p>
             </div>
           ) : scan.errors.map((err: any, i: number) => {
@@ -265,7 +265,7 @@ export default function ScanDetails({ scanId, githubConnected, githubUsername, o
           <div style={{ padding: '20px' }}>
             {!githubConnected ? (
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔗</div>
+                <div style={{ marginBottom: '10px' }}><svg width="28" height="28" fill="none" stroke="#94a3b8" viewBox="0 0 24 24" style={{display:'block',margin:'0 auto'}}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg></div>
                 <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '14px', lineHeight: 1.5 }}>
                   Connect your GitHub account to map these errors to source files and raise a fix PR.
                 </p>

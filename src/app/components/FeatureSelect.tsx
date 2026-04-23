@@ -138,7 +138,7 @@ export default function FeatureSelect({ user, onSelect }: FeatureSelectProps) {
         {/* ── Header ── */}
         <header style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderBottom: '1.5px solid #fed7aa', padding: '0 32px', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '36px', height: '36px', background: 'linear-gradient(135deg,#ea580c,#f59e0b)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>⚡</div>
+            <div style={{ width: '36px', height: '36px', background: 'linear-gradient(135deg,#ea580c,#f59e0b)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="18" height="18" fill="none" stroke="#fff" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg></div>
             <span style={{ fontSize: '20px', fontWeight: 900, background: 'linear-gradient(135deg,#ea580c,#f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>FlowFinder</span>
             {stats?.github?.connected && (
               <span style={{ fontSize: '12px', fontWeight: 600, color: '#15803d', background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: '20px', padding: '3px 10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -149,7 +149,7 @@ export default function FeatureSelect({ user, onSelect }: FeatureSelectProps) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 600 }}>{user?.email}</span>
-            <button onClick={() => router.push('/settings')} style={{ padding: '7px 14px', border: '1.5px solid #e2e8f0', borderRadius: '9px', background: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#374151' }}>⚙ Settings</button>
+            <button onClick={() => router.push('/settings')} style={{ padding: '7px 14px', border: '1.5px solid #e2e8f0', borderRadius: '9px', background: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#374151', display: 'flex', alignItems: 'center', gap: '5px' }}><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>Settings</button>
             <button onClick={handleLogout} style={{ padding: '7px 14px', border: '1.5px solid #fed7aa', borderRadius: '9px', background: '#fff7ed', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#c2410c' }}>Logout</button>
           </div>
         </header>
@@ -159,7 +159,7 @@ export default function FeatureSelect({ user, onSelect }: FeatureSelectProps) {
           {/* ── Welcome ── */}
           <div className="fade-up" style={{ marginBottom: '28px' }}>
             <h1 style={{ fontSize: '28px', fontWeight: 900, color: '#0f172a', margin: '0 0 4px' }}>
-              Welcome back, {user?.fullName?.split(' ')[0] || 'there'} 👋
+              Welcome back, {user?.fullName?.split(' ')[0] || 'there'}
             </h1>
             <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>Here's your accessibility & design quality at a glance.</p>
           </div>
