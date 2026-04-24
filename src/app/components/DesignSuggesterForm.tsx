@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import type { DesignHistoryEntry } from './dashboard';
 
 interface Props {
   onSubmit: (
@@ -12,9 +11,7 @@ interface Props {
   ) => void;
   onBack: () => void;
   isProcessing: boolean;
-  designHistory?: DesignHistoryEntry[];
-  onSelectDesign?: (id: string) => void;
-  onToggleSave?: (id: string) => void;
+  onShowHistory?: () => void;
 }
 
 /* SVG icon components for frameworks */
@@ -88,8 +85,7 @@ const PRESET_STYLES = [
   },
 ];
 
-const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing, designHistory = [], onSelectDesign, onToggleSave }) => {
-  const [historyFilter, setHistoryFilter] = useState<'all' | 'saved'>('all');
+const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing, onShowHistory }) => {
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [framework, setFramework] = useState('html');
   const [selectedPresets, setSelectedPresets] = useState<string[]>(['minimal', 'bold', 'colorful']);
@@ -159,15 +155,13 @@ const WebsiteRedesignerForm: React.FC<Props> = ({ onSubmit, onBack, isProcessing
         {/* Header */}
         <div className="text-center mb-8 fade-up relative">
           {/* View History button — top right, same style as Match Design */}
-          {designHistory.length > 0 && (
-            <button
-              onClick={() => onSelectDesign?.(designHistory[0]?.id)}
-              style={{ position: 'absolute', top: 0, right: 0, display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 10, border: '1.5px solid #e0e7ff', background: '#fff', fontSize: 13, fontWeight: 700, color: '#6366f1', cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s', boxShadow: '0 1px 4px rgba(0,0,0,.06)' }}
-            >
-              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              View History
-            </button>
-          )}
+          <button
+            onClick={onShowHistory}
+            style={{ position: 'absolute', top: 0, right: 0, display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 10, border: '1.5px solid #e0e7ff', background: '#fff', fontSize: 13, fontWeight: 700, color: '#6366f1', cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s', boxShadow: '0 1px 4px rgba(0,0,0,.06)' }}
+          >
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            View History
+          </button>
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-200">
             <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />

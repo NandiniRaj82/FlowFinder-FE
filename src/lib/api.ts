@@ -62,6 +62,12 @@ export const api = {
 
   delete: <T>(endpoint: string) => apiFetch<T>(endpoint, { method: 'DELETE' }),
 
+  patch: <T>(endpoint: string, body?: unknown) =>
+    apiFetch<T>(endpoint, {
+      method: 'PATCH',
+      body: body ? JSON.stringify(body) : undefined,
+    }),
+
   /** For FormData uploads — lets browser set the multipart boundary */
   postForm: <T>(endpoint: string, formData: FormData) =>
     apiFetch<T>(endpoint, {

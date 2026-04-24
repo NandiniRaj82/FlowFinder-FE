@@ -11,6 +11,7 @@ import MatchDesignChat from './MatchDesignChat';
 import DesignScanHistory from './DesignScanHistory';
 import WebsiteRedesignerForm from './DesignSuggesterForm';
 import WebsiteRedesignerResults from './DesignSuggesterResults';
+import RedesignHistory, { type FullHistoryEntry } from './RedesignHistory';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 
@@ -28,11 +29,12 @@ interface RedesignDesign {
 
 export interface DesignHistoryEntry {
   id: string;
-  prompt: string;         // e.g. "bold — Bold & Dark"
+  prompt: string;
   design: RedesignDesign;
   isSaved: boolean;
-  createdAt: number;      // Date.now()
-  websiteUrl?: string;    // URL that was redesigned
+  createdAt: number;
+  websiteUrl?: string;
+  dbId?: string;          // MongoDB _id — set after backend persists
 }
 
 interface DashboardProps {
@@ -82,27 +84,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
   const [matchError, setMatchError] = useState<string | null>(null);
 
   /* ── Website Redesigner ──────────────────────────────────────────────── */
-  const [redesignerStage, setRedesignerStage] = useState<'form' | 'results'>('form');
+  const [redesignerStage, setRedesignerStage] = useState<'form' | 'history' | 'results'>('form');
   const [redesignerProcessing, setRedesignerProcessing] = useState(false);
 
-  // Load persisted history from localStorage on first mount
-  const [designHistory, setDesignHistory] = useState<DesignHistoryEntry[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const raw = localStorage.getItem('ff_design_history');
-      if (!raw) return [];
-      // Stored entries have no code — re-attach empty code so type is satisfied
-      const meta: Array<Omit<DesignHistoryEntry, 'design'> & { design: Partial<RedesignDesign> }> = JSON.parse(raw);
-      return meta.map(e => ({
-        ...e,
-        design: {
-          style: '', styleName: e.design.styleName || '', framework: e.design.framework || 'html',
-          frameworkLabel: e.design.frameworkLabel || '', ext: e.design.ext || 'html',
-          code: '', previewHtml: e.design.previewHtml || '',
-        },
-      }));
-    } catch { return []; }
-  });
+  // Current session designs — ONLY the freshly generated ones
+  const [currentSessionDesigns, setCurrentSessionDesigns] = useState<DesignHistoryEntry[]>([]);
+  const [redesignHistoryKey, setRedesignHistoryKey] = useState(0);  // incremented to force refetch
+  const [previousRedesignerStage, setPreviousRedesignerStage] = useState<'form' | 'history'>('form');
 
   const [activeDesignId, setActiveDesignId] = useState<string | null>(null);
   const [redesignerWebsiteUrl, setRedesignerWebsiteUrl] = useState('');
@@ -112,23 +100,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
   const [redesignerStatus, setRedesignerStatus] = useState('');
   const [redesignerPendingStyles, setRedesignerPendingStyles] = useState<string[]>([]);
 
-  // Persist design history metadata to localStorage whenever it changes
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const meta = designHistory.map(e => ({
-        id: e.id, prompt: e.prompt, isSaved: e.isSaved, createdAt: e.createdAt,
-        websiteUrl: e.websiteUrl,
-        design: {
-          style: e.design.style, styleName: e.design.styleName,
-          framework: e.design.framework, frameworkLabel: e.design.frameworkLabel, ext: e.design.ext,
-          // Only store previewHtml for saved entries to avoid localStorage quota issues
-          ...(e.isSaved ? { previewHtml: e.design.previewHtml || e.design.code || '' } : {}),
-        },
-      }));
-      localStorage.setItem('ff_design_history', JSON.stringify(meta));
-    } catch { /* quota exceeded — skip */ }
-  }, [designHistory]);
 
   /* ── Full reset ──────────────────────────────────────────────────────── */
   const handleFullReset = () => {
@@ -262,7 +233,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
 
     setRedesignerProcessing(true);
     setRedesignerWebsiteUrl(websiteUrl);
-    // Keep existing history — new designs append; reset pending
+    // Clear current session designs for this new generation
+    setCurrentSessionDesigns([]);
+    setPreviousRedesignerStage('form');
     setRedesignerPendingStyles(allPending);
     setRedesignerStatus('Scraping site & generating redesigns…');
 
@@ -310,6 +283,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
             } else if (eventName === 'design') {
               const arrivedStyle: string = payload.design?.style || '';
               const arrivedDesign: RedesignDesign = payload.design;
+              const dbId: string | undefined = payload.design?.dbId;
 
               // Create a new history entry
               const entryId = crypto.randomUUID();
@@ -320,9 +294,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
                 isSaved: false,
                 createdAt: Date.now(),
                 websiteUrl,
+                dbId,
               };
 
-              setDesignHistory(prev => [...prev, entry]);
+              setCurrentSessionDesigns(prev => [...prev, entry]);
               setRedesignerPendingStyles(prev => prev.filter(s => s !== arrivedStyle));
 
               // Switch to results and make first design active
@@ -359,7 +334,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
 
   const handleRedesignerReset = () => {
     setRedesignerStage('form');
-    setDesignHistory([]);
+    setCurrentSessionDesigns([]);
     setActiveDesignId(null);
     setRedesignerWebsiteUrl('');
     setRedesignerPageTitle('');
@@ -368,12 +343,44 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
     setRedesignerPendingStyles([]);
   };
 
+  // Load a saved design from history into the results view
+  const handleViewHistoryDesign = (entry: FullHistoryEntry) => {
+    const sessionEntry: DesignHistoryEntry = {
+      id: entry._id,
+      dbId: entry._id,
+      prompt: entry.styleName || entry.style,
+      design: {
+        style: entry.style,
+        styleName: entry.styleName,
+        framework: entry.framework,
+        frameworkLabel: entry.frameworkLabel,
+        ext: entry.framework === 'react' || entry.framework === 'nextjs' ? 'jsx' : 'html',
+        code: entry.previewHtml || '',
+        previewHtml: entry.previewHtml || '',
+      },
+      isSaved: entry.isSaved,
+      createdAt: new Date(entry.createdAt).getTime(),
+      websiteUrl: entry.websiteUrl,
+    };
+    setCurrentSessionDesigns([sessionEntry]);
+    setActiveDesignId(entry._id);
+    setRedesignerWebsiteUrl(entry.websiteUrl);
+    setPreviousRedesignerStage('history');
+    setRedesignerStage('results');
+  };
+
   const handleSelectDesign = (id: string) => setActiveDesignId(id);
 
-  const handleToggleSave = (id: string) => {
-    setDesignHistory(prev =>
-      prev.map(entry => entry.id === id ? { ...entry, isSaved: !entry.isSaved } : entry)
+  const handleToggleSave = async (id: string) => {
+    const entry = currentSessionDesigns.find(e => e.id === id);
+    const newSaved = entry ? !entry.isSaved : false;
+    setCurrentSessionDesigns(prev =>
+      prev.map(e => e.id === id ? { ...e, isSaved: newSaved } : e)
     );
+    // Persist to DB if we have the dbId
+    if (entry?.dbId) {
+      try { await api.patch(`/api/redesign/${entry.dbId}/save`, {}); } catch { /* ignore */ }
+    }
   };
 
   /* ── Derived ─────────────────────────────────────────────────────────── */
@@ -468,6 +475,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
                 {feature === 'website-redesigner' && (
                   <div className="hidden md:flex items-center gap-2 text-xs text-slate-500">
                     <span className={redesignerStage === 'form' ? 'text-indigo-600 font-semibold' : 'text-slate-400'}>URL</span>
+                    <span>›</span>
+                    <span className={redesignerStage === 'history' ? 'text-indigo-600 font-semibold' : 'text-slate-400'}>History</span>
                     <span>›</span>
                     <span className={redesignerStage === 'results' ? 'text-indigo-600 font-semibold' : 'text-slate-400'}>Redesigns</span>
                   </div>
@@ -626,8 +635,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
                       worstSection={matchWorstSection}
                       layoutDivergence={matchLayoutDivergence}
                       onReset={handleMatchReset}
-                      githubConnected={githubConnected}
-                      onConnectGitHub={() => router.push('/settings')}
                     />
                   </div>
                 )}
@@ -643,22 +650,29 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
                       onSubmit={handleRedesignerSubmit}
                       onBack={handleFullReset}
                       isProcessing={redesignerProcessing}
-                      designHistory={designHistory}
-                      onSelectDesign={(id) => { handleSelectDesign(id); setRedesignerStage('results'); }}
-                      onToggleSave={handleToggleSave}
+                      onShowHistory={() => { setRedesignHistoryKey(k => k + 1); setRedesignerStage('history'); }}
+                    />
+                  </div>
+                )}
+                {redesignerStage === 'history' && (
+                  <div style={{ height: '100%', overflow: 'auto', padding: '24px', maxWidth: 640, margin: '0 auto' }}>
+                    <RedesignHistory
+                      key={redesignHistoryKey}
+                      onViewDesign={handleViewHistoryDesign}
+                      onNewRedesign={() => setRedesignerStage('form')}
                     />
                   </div>
                 )}
                 {redesignerStage === 'results' && (
                   <div className="animate-fade-in" style={{ height: '100%' }}>
                     <WebsiteRedesignerResults
-                      designHistory={designHistory}
+                      designHistory={currentSessionDesigns}
                       activeDesignId={activeDesignId}
                       websiteUrl={redesignerWebsiteUrl}
                       pageTitle={redesignerPageTitle}
                       screenshotBase64={redesignerScreenshot}
                       stats={redesignerStats}
-                      onReset={() => setRedesignerStage('form')}
+                      onReset={() => setRedesignerStage(previousRedesignerStage)}
                       isStreaming={redesignerProcessing}
                       pendingStyles={redesignerPendingStyles}
                       onSelectDesign={handleSelectDesign}

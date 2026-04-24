@@ -257,13 +257,10 @@ const WebsiteRedesignerResults: React.FC<Props> = ({
   onReset, isStreaming, pendingStyles = [], onSelectDesign, onToggleSave,
   githubConnected = false, onConnectGitHub = () => {},
 }) => {
-  const [filter, setFilter] = useState<'all' | 'saved'>('all');
   const [modalId, setModalId] = useState<string | null>(null);
 
   const hostname = (() => { try { return new URL(websiteUrl).hostname; } catch { return websiteUrl; } })();
   const modalEntry = designHistory.find(e => e.id === modalId) ?? null;
-  const displayed = filter === 'saved' ? designHistory.filter(e => e.isSaved) : designHistory;
-  const savedCount = designHistory.filter(e => e.isSaved).length;
 
   return (
     <>
@@ -298,30 +295,13 @@ const WebsiteRedesignerResults: React.FC<Props> = ({
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* Filter tabs */}
-            <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: 10, padding: 3, gap: 2 }}>
-              {(['all', 'saved'] as const).map(f => (
-                <button key={f} onClick={() => setFilter(f)} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', background: filter === f ? '#fff' : 'transparent', color: filter === f ? '#1e293b' : '#94a3b8', boxShadow: filter === f ? '0 1px 4px rgba(0,0,0,.08)' : 'none', transition: 'all .15s' }}>
-                  {f === 'all' ? `All (${designHistory.length})` : <><svg width="10" height="10" fill={filter === 'saved' ? '#fbbf24' : '#94a3b8'} viewBox="0 0 24 24" style={{display:'inline',verticalAlign:'middle',marginRight:2}}><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> Saved ({savedCount})</>}
-                </button>
-              ))}
-            </div>
             <button onClick={onReset} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 700, color: '#475569', cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s' }}><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg> New Redesign</button>
           </div>
         </div>
 
-        {/* Saved empty state */}
-        {filter === 'saved' && savedCount === 0 && (
-          <div style={{ textAlign: 'center', padding: '60px 20px', border: '1.5px dashed #e2e8f0', borderRadius: 16 }}>
-            <svg width="28" height="28" fill="none" stroke="#cbd5e1" viewBox="0 0 24 24" style={{margin:'0 auto 8px',display:'block'}}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-            <p style={{ fontWeight: 700, color: '#1e293b', margin: '0 0 4px' }}>No saved designs yet</p>
-            <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Click the star on any design card to save it here.</p>
-          </div>
-        )}
-
         {/* Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 24 }}>
-          {displayed.map((entry, i) => (
+          {designHistory.map((entry, i) => (
             <div key={entry.id} style={{ animation: `slideUp .4s ${i * .06}s both` }}>
               <DesignCard
                 entry={entry}
@@ -330,7 +310,7 @@ const WebsiteRedesignerResults: React.FC<Props> = ({
               />
             </div>
           ))}
-          {filter === 'all' && pendingStyles.map(s => <SkeletonCard key={s} />)}
+          {pendingStyles.map(s => <SkeletonCard key={s} />)}
         </div>
       </div>
     </>
