@@ -150,10 +150,17 @@ const MatchDesignChat: React.FC<Props> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const cardRefs = useRef<(HTMLElement | null)[]>([]);
+  const [showMinor, setShowMinor] = useState(false);
 
   const critCount = mismatches.filter(m => m.severity === 'critical').length;
-  const majCount = mismatches.filter(m => m.severity === 'major').length;
-  const minCount = mismatches.filter(m => m.severity === 'minor').length;
+  const majCount  = mismatches.filter(m => m.severity === 'major').length;
+  const minCount  = mismatches.filter(m => m.severity === 'minor').length;
+
+  // Apply minor filter
+  const visibleMismatches = showMinor
+    ? mismatches
+    : mismatches.filter(m => m.severity !== 'minor');
+
   const hostname = (() => { try { return new URL(websiteUrl).hostname; } catch { return websiteUrl; } })();
   const sm = scoreMeta(matchScore);
 
@@ -230,6 +237,18 @@ const MatchDesignChat: React.FC<Props> = ({
               <span className="text-xs text-slate-400">{critCount} critical · {majCount} major · {minCount} minor</span>
             </div>
             <div className="flex items-center gap-2">
+              {/* Minor toggle */}
+              <button
+                onClick={() => setShowMinor(v => !v)}
+                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                  showMinor
+                    ? 'bg-yellow-50 border-yellow-300 text-yellow-700'
+                    : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-yellow-400" />
+                {showMinor ? `Minor (${minCount})` : `Show minor (${minCount})`}
+              </button>
               <span className="text-xs text-slate-400 hidden md:flex items-center gap-1 truncate max-w-[200px]"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>{hostname}</span>
               <button onClick={onReset}
                 className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 px-3 py-1.5 bg-white border border-slate-200 rounded-lg hover:border-slate-400 shadow-sm transition-all">
@@ -363,11 +382,14 @@ const MatchDesignChat: React.FC<Props> = ({
                   <h2 className="text-sm font-bold text-slate-800 mb-1 flex items-center gap-2">
                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
                     Issues
-                    <span className="text-xs font-bold text-violet-600 bg-violet-100 px-2 py-0.5 rounded-full">{mismatches.length}</span>
+                    <span className="text-xs font-bold text-violet-600 bg-violet-100 px-2 py-0.5 rounded-full">{visibleMismatches.length}</span>
+                    {!showMinor && minCount > 0 && (
+                      <span className="text-xs text-slate-400 font-normal">({minCount} minor hidden)</span>
+                    )}
                   </h2>
                   <p className="text-xs text-slate-400 mb-5">Switch to Compare view to see issues highlighted on screenshots</p>
                   <div className="space-y-3">
-                    {mismatches.map((m, i) => {
+                    {visibleMismatches.map((m, i) => {
                       const cfg = getSev(m.severity);
                       return (
                         <div key={m.issueNumber} ref={el => { cardRefs.current[i] = el; }}
@@ -475,7 +497,7 @@ const MatchDesignChat: React.FC<Props> = ({
                           ? <img src={webSrc} alt="Live Site" className="w-full h-full object-cover object-top" style={{ display: 'block' }} />
                           : <div className="flex items-center justify-center h-64 text-slate-400 text-sm">No screenshot</div>
                         }
-                        <BoxOverlays mismatches={mismatches} activeIssue={activeIssue}
+                        <BoxOverlays mismatches={visibleMismatches} activeIssue={activeIssue}
                           onEnter={handleBoxEnter} onLeave={handleBoxLeave} onClick={scrollToCard} />
                       </div>
                     </div>
@@ -531,10 +553,11 @@ const MatchDesignChat: React.FC<Props> = ({
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
                 <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
                   <h3 className="text-sm font-black text-slate-800">Issues</h3>
-                  <span className="text-xs font-bold text-violet-600 bg-violet-100 px-2 py-0.5 rounded-full">{mismatches.length}</span>
+                  <span className="text-xs font-bold text-violet-600 bg-violet-100 px-2 py-0.5 rounded-full">{visibleMismatches.length}</span>
+                  {!showMinor && minCount > 0 && <span className="text-xs text-slate-400">({minCount} minor hidden)</span>}
                 </div>
                 <div className="divide-y divide-slate-50">
-                  {mismatches.map((m, i) => {
+                  {visibleMismatches.map((m, i) => {
                     const cfg = getSev(m.severity);
                     const isActive = activeIssue === m.issueNumber;
                     return (

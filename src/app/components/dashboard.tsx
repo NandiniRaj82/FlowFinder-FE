@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import UploadSection from './uploadSection';
 import ChoiceCards from './choiceSection';
@@ -48,6 +48,8 @@ type Feature = 'accessibility' | 'match-design' | 'website-redesigner' | null;
 const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) => {
   const router = useRouter();
   const { signOut } = useAuth();
+  const mounted   = useRef(false);
+  const urlSync   = useRef(false); // true while restoring from URL
 
   const handleLogout = async () => {
     await signOut();
@@ -101,8 +103,58 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
   const [redesignerPendingStyles, setRedesignerPendingStyles] = useState<string[]>([]);
 
 
+  /* ── URL navigation helpers ─────────────────────────────────────────── */
+  // Build URL from feature + stage slug
+  const buildUrl = (f: Feature, s?: string) =>
+    f ? `/dashboard?f=${f}&s=${s || 'form'}` : '/dashboard';
+
+  // Select a feature and push a new history entry so Back works
+  const selectFeature = (f: Feature) => {
+    window.history.pushState({}, '', buildUrl(f));
+    setFeature(f);
+  };
+
+  // Restore state from URLSearchParams
+  const restoreFromParams = (p: URLSearchParams) => {
+    const f = (p.get('f') || null) as Feature;
+    const s = p.get('s') || 'form';
+    urlSync.current = true;
+    setFeature(f);
+    if (f === 'match-design') setMatchStage(s === 'results' ? 'chat' : (s as 'form' | 'history' | 'chat'));
+    if (f === 'website-redesigner') setRedesignerStage(s as 'form' | 'history' | 'results');
+    if (f === 'accessibility') setStage(s as AppStage);
+    setTimeout(() => { urlSync.current = false; }, 100);
+  };
+
+  // On mount: restore state from URL
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    restoreFromParams(new URLSearchParams(window.location.search));
+    mounted.current = true;
+  }, []);
+
+  // Keep URL in sync with state (replaceState = no extra history entries)
+  useEffect(() => {
+    if (!mounted.current || urlSync.current) return;
+    const stageSlug =
+      feature === 'match-design'        ? (matchStage === 'chat' ? 'results' : matchStage) :
+      feature === 'website-redesigner'  ? redesignerStage :
+      feature === 'accessibility'       ? stage : 'form';
+    window.history.replaceState({}, '', buildUrl(feature, stageSlug));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feature, stage, matchStage, redesignerStage]);
+
+  // Browser back/forward
+  useEffect(() => {
+    const onPop = () => restoreFromParams(new URLSearchParams(window.location.search));
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /* ── Full reset ──────────────────────────────────────────────────────── */
   const handleFullReset = () => {
+    window.history.pushState({}, '', '/dashboard');
     setFeature(null);
     setUploadedFiles([]); setAccessibilityErrors([]); setIsProcessing(false);
     setSelectedChoice(null); setApiResult(null); setStage('upload');
@@ -407,7 +459,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, githubConnected = false }) 
       `}</style>
 
       {/* Feature Select */}
-      {feature === null && <FeatureSelect user={user} onSelect={setFeature} />}
+      {feature === null && <FeatureSelect user={user} onSelect={selectFeature} />}
 
       {/* All feature screens */}
       {feature !== null && (
