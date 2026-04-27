@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
@@ -13,11 +13,15 @@ interface GitHubStatus {
   connectedAt?: string;
 }
 
-function SettingsContent() {
+export default function SettingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading, signOut } = useAuth();
   const [githubStatus, setGithubStatus] = useState<GitHubStatus>({ connected: false });
+  // Ref flag: set to true when we handle an OAuth callback so the [user]
+  // effect doesn't fire a competing /status fetch and overwrite optimistic state.
+  // useRef survives re-renders (unlike state) without causing extra renders.
+  const oauthCallbackHandled = useRef(false);
   const [loadingGitHub, setLoadingGitHub] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -38,15 +42,27 @@ function SettingsContent() {
   useEffect(() => {
     const github = searchParams.get('github');
     const username = searchParams.get('username');
+
     if (github === 'connected') {
-      showToast(`✓ GitHub connected as @${username}`);
-      // Refresh status from server
-      api.get<any>('/api/github/status')
-        .then(d => setGithubStatus(d))
-        .catch(() => { });
+      // Mark BEFORE cleaning URL — window.history.replaceState triggers a
+      // Next.js re-render that empties searchParams, so the [user] effect
+      // can no longer check searchParams.get('github'). The ref survives.
+      oauthCallbackHandled.current = true;
+
+      setGithubStatus({ connected: true, username: username || undefined });
       setLoadingGitHub(false);
+      showToast(`✓ GitHub connected as @${username}`);
       window.history.replaceState({}, '', '/settings');
+
+      // Refresh with full server data after DB write settles
+      setTimeout(() => {
+        api.get<any>('/api/github/status')
+          .then(d => { if (d?.connected) setGithubStatus(d); })
+          .catch(() => { });
+      }, 1000);
+
     } else if (github === 'error') {
+      setLoadingGitHub(false);
       showToast('GitHub connection failed. Please try again.', 'error');
       window.history.replaceState({}, '', '/settings');
     }
@@ -54,6 +70,11 @@ function SettingsContent() {
 
   useEffect(() => {
     if (!user) return;
+    // If an OAuth callback was just handled, skip — the [searchParams] effect
+    // already set optimistic state and scheduled a delayed /status refresh.
+    // The ref is reliable even after replaceState empties searchParams.
+    if (oauthCallbackHandled.current) return;
+
     api.get<any>('/api/github/status')
       .then(d => setGithubStatus(d))
       .catch(() => { })
@@ -321,68 +342,5 @@ function SettingsContent() {
         @keyframes slideIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
       `}</style>
     </div>
-  );
-}
-function SettingsLoading() {
-  return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: '#f8fafc',
-      fontFamily: 'Inter, sans-serif'
-    }}>
-
-      {/* Orange Spinner */}
-      <div style={{
-        width: '48px',
-        height: '48px',
-        border: '4px solid #fed7aa',
-        borderTop: '4px solid #ea580c',
-        borderRadius: '50%',
-        animation: 'spin 0.8s linear infinite'
-      }} />
-
-      {/* Text */}
-      <p style={{
-        marginTop: '14px',
-        fontSize: '14px',
-        fontWeight: 600,
-        color: '#ea580c'
-      }}>
-      </p>
-
-      {/* Optional subtle glow */}
-      <div style={{
-        width: '60px',
-        height: '6px',
-        marginTop: '10px',
-        borderRadius: '999px',
-        background: 'linear-gradient(90deg, transparent, #fb923c, transparent)',
-        animation: 'pulse 1.5s infinite'
-      }} />
-
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-
-        @keyframes pulse {
-          0% { opacity: 0.3; transform: scaleX(0.8); }
-          50% { opacity: 1; transform: scaleX(1); }
-          100% { opacity: 0.3; transform: scaleX(0.8); }
-        }
-      `}</style>
-    </div>
-  );
-}
-export default function SettingsPage() {
-  return (
-    <Suspense fallback={<SettingsLoading />}>
-      <SettingsContent />
-    </Suspense>
   );
 }
