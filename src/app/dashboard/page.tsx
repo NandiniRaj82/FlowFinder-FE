@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from 'next/navigation';
 import Dashboard from '../components/dashboard';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading } = useAuth();
@@ -18,7 +19,7 @@ export default function DashboardPage() {
     if (!user) return;
     api.get<any>('/api/github/status')
       .then(d => setGithubConnected(d.connected ?? false))
-      .catch(() => {});
+      .catch(() => { });
   }, [user]);
 
   // Handle GitHub OAuth callback redirect
@@ -44,10 +45,10 @@ export default function DashboardPage() {
 
   if (loading || !user) {
     return (
-      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'linear-gradient(135deg,#fff7ed,#fffbeb,#fff)' }}>
-        <div style={{ textAlign:'center' }}>
-          <div style={{ width:'52px', height:'52px', border:'4px solid #fed7aa', borderTopColor:'#ea580c', borderRadius:'50%', animation:'spin 0.8s linear infinite', margin:'0 auto 16px' }} />
-          <p style={{ color:'#64748b', fontWeight:600, fontFamily:'Inter,sans-serif' }}>Loading FlowFinder...</p>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#fff7ed,#fffbeb,#fff)' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: '52px', height: '52px', border: '4px solid #fed7aa', borderTopColor: '#ea580c', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
+          <p style={{ color: '#64748b', fontWeight: 600, fontFamily: 'Inter,sans-serif' }}></p>
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
@@ -65,14 +66,14 @@ export default function DashboardPage() {
     <>
       {githubToast && (
         <div style={{
-          position:'fixed', top:'20px', right:'20px', zIndex:9999,
-          padding:'12px 20px', borderRadius:'12px',
+          position: 'fixed', top: '20px', right: '20px', zIndex: 9999,
+          padding: '12px 20px', borderRadius: '12px',
           background: githubToast.startsWith('✓') ? '#f0fdf4' : '#fef2f2',
           border: `1.5px solid ${githubToast.startsWith('✓') ? '#86efac' : '#fca5a5'}`,
           color: githubToast.startsWith('✓') ? '#15803d' : '#b91c1c',
-          fontWeight:600, fontSize:'14px', fontFamily:'Inter,sans-serif',
-          boxShadow:'0 4px 20px rgba(0,0,0,0.1)',
-          animation:'slideIn 0.3s ease-out',
+          fontWeight: 600, fontSize: '14px', fontFamily: 'Inter,sans-serif',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+          animation: 'slideIn 0.3s ease-out',
         }}>
           {githubToast}
         </div>
@@ -80,5 +81,13 @@ export default function DashboardPage() {
       <Dashboard user={userForDashboard} githubConnected={githubConnected} />
       <style>{`@keyframes slideIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }`}</style>
     </>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense>
+      <DashboardPageContent />
+    </Suspense>
   );
 }
