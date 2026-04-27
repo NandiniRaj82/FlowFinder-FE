@@ -13,7 +13,7 @@ interface GitHubStatus {
   connectedAt?: string;
 }
 
-export default function SettingsPage() {
+function SettingsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading, signOut } = useAuth();
@@ -342,5 +342,67 @@ export default function SettingsPage() {
         @keyframes slideIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
       `}</style>
     </div>
+  );
+}
+function SettingsLoading() {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: '#f8fafc',
+      fontFamily: 'Inter, sans-serif'
+    }}>
+
+      {/* Orange Spinner */}
+      <div style={{
+        width: '48px',
+        height: '48px',
+        border: '4px solid #fed7aa',
+        borderTop: '4px solid #ea580c',
+        borderRadius: '50%',
+        animation: 'spin 0.8s linear infinite'
+      }} />
+
+      {/* Text */}
+      <p style={{
+        marginTop: '14px',
+        fontSize: '14px',
+        fontWeight: 600,
+        color: '#ea580c'
+      }}>
+      </p>
+
+      {/* Optional subtle glow */}
+      <div style={{
+        width: '60px',
+        height: '6px',
+        marginTop: '10px',
+        borderRadius: '999px',
+        background: 'linear-gradient(90deg, transparent, #fb923c, transparent)',
+        animation: 'pulse 1.5s infinite'
+      }} />
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+          0% { opacity: 0.3; transform: scaleX(0.8); }
+          50% { opacity: 1; transform: scaleX(1); }
+          100% { opacity: 0.3; transform: scaleX(0.8); }
+        }
+      `}</style>
+    </div>
+  );
+}
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<SettingsLoading />}>
+      <SettingsContent />
+    </Suspense>
   );
 }
